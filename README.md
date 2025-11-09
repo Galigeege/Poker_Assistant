@@ -1,6 +1,8 @@
 # 🎰 德州扑克 AI 助手
 
 一个集成 AI 大模型分析能力的德州扑克学习与练习平台。
+<img width="1159" height="672" alt="image" src="https://github.com/user-attachments/assets/256d4eea-f133-41dc-8e2f-6b04cd498a12" />
+
 
 ## ✨ 特性
 
