@@ -98,21 +98,23 @@ python main.py
 
 ## 🗺️ Roadmap
 
-### Phase 1: Core (Current) ✅
+### Phase 1: Core (Completed) ✅
 - [x] 混合 AI 决策引擎 (LLM + Math)
 - [x] 多 LLM 后端支持
 - [x] GameLogger 数据持久化
 - [x] 命令行交互优化
 
-### Phase 2: Server (In Progress) 🚧
-- [ ] FastAPI 后端改造
-- [ ] WebSocket 实时通信
-- [ ] 异步事件驱动架构
+### Phase 2: Server (Completed) ✅
+- [x] FastAPI 后端改造
+- [x] WebSocket 实时通信
+- [x] 异步事件驱动架构
+- [x] 独立游戏线程管理
 
-### Phase 3: Web Arena (Planning) 📅
-- [ ] 实时对战 Web 界面 (React)
+### Phase 3: Web Arena (Next Step) 🚧
+- [ ] 实时对战 Web 界面 (React/Streamlit)
 - [ ] 可视化复盘 Dashboard
 - [ ] 胜率曲线图 (Equity Graph)
+- [ ] 现代化游戏大厅
 
 详见 [WEB_PRD.md](./WEB_PRD.md) 获取完整设计规划。
 
