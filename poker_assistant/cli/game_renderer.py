@@ -140,27 +140,54 @@ class GameRenderer:
         winner_uuids = {w['uuid'] for w in winners}
         
         # 显示所有玩家的手牌（如果到了摊牌）
+        # 只要有 hand_info，说明至少有赢家摊牌了。
+        # 我们需要遍历所有参与游戏的玩家（state != 'folded'），并尝试显示他们的手牌
         if hand_info and len(hand_info) > 0:
             self.console.print("\n🃏 摊牌阶段 - 玩家手牌:", style="bold cyan")
             
-            for info in hand_info:
-                uuid = info['uuid']
+            # 获取所有座位信息
+            seats = round_state.get('seats', [])
+            
+            # 遍历所有玩家
+            for seat in seats:
+                uuid = seat['uuid']
+                state = seat['state']
+                name = seat['name']
                 
-                # 找到玩家名字
-                player_name = "未知"
-                for seat in round_state['seats']:
-                    if seat['uuid'] == uuid:
-                        player_name = seat['name']
-                        break
+                # 只显示未弃牌的玩家（参与摊牌）
+                # 注意：PyPokerEngine 中赢家可能提前 folded (如对手全部弃牌)，但这里是摊牌阶段
+                # 通常只有 participating 或 allin 的玩家才摊牌
+                if state == 'folded':
+                    continue
                 
                 # 检查是否是获胜者
                 is_winner = uuid in winner_uuids
                 
                 # 获取玩家底牌
+                # 优先从 player_hole_cards 获取（包含人类和AI）
                 hole_cards = player_hole_cards.get(uuid, []) if player_hole_cards else []
                 
+                # 如果 player_hole_cards 中没有，尝试从 hand_info 中找（仅赢家有）
+                if not hole_cards and is_winner:
+                    for h in hand_info:
+                        if h['uuid'] == uuid:
+                            # hand_info 中的牌可能是 Card 对象或 ID，需要处理，但目前系统逻辑是
+                            # hand_info 只给 high/low，不给具体花色。
+                            # 所以我们必须依赖 player_hole_cards。
+                            pass
+
+                # 构建显示的 hand_info 结构
+                # 只有赢家有真实的 hand_info（牌型名称等），输家没有
+                # 我们需要手动构造或显示未知
+                current_hand_info = None
+                if is_winner:
+                    for h in hand_info:
+                        if h['uuid'] == uuid:
+                            current_hand_info = h
+                            break
+                
                 # 显示手牌
-                self._render_showdown_hand(player_name, info, hole_cards, is_winner)
+                self._render_showdown_hand(name, current_hand_info, hole_cards, is_winner)
         
         # 显示赢家和赢得金额
         self.console.print("\n🎉 赢家:", style="bold yellow")
@@ -220,7 +247,7 @@ class GameRenderer:
         
         self.console.print("="*60, style="magenta")
     
-    def _render_showdown_hand(self, player_name: str, hand_info: Dict, 
+    def _render_showdown_hand(self, player_name: str, hand_info: Optional[Dict], 
                               hole_cards: List[str] = None, is_winner: bool = False):
         """渲染摊牌时的手牌"""
         if player_name == "你":
@@ -246,13 +273,20 @@ class GameRenderer:
             
             self.console.print(hole_text)
         else:
-            # 如果没有底牌数据（不应该发生），显示提示而不是"高牌低牌"
-            self.console.print(f"    底牌: [未记录]", style="dim yellow")
+            # 如果没有底牌数据
+            self.console.print(f"    底牌: [盖牌/未显示]", style="dim white")
         
-        # 显示牌型
-        hand_strength = hand_info.get('hand', {}).get('hand', {}).get('strength', 'UNKNOWN')
-        hand_strength_cn = self._translate_hand_strength(hand_strength)
-        self.console.print(f"    牌型: {hand_strength_cn}", style="bold cyan")
+        # 显示牌型 (仅当有 hand_info 时)
+        if hand_info:
+            hand_strength = hand_info.get('hand', {}).get('hand', {}).get('strength', 'UNKNOWN')
+            hand_strength_cn = self._translate_hand_strength(hand_strength)
+            self.console.print(f"    牌型: {hand_strength_cn}", style="bold cyan")
+        elif is_winner:
+             # 理论上赢家一定有 info，但也防守一下
+             pass
+        else:
+             # 输家如果没有 info，就不显示牌型文字，只显示底牌
+             pass
     
     def _translate_hand_strength(self, strength: str) -> str:
         """将牌型英文翻译为中文"""
@@ -298,8 +332,14 @@ class GameRenderer:
         action_cn = {
             "fold": "🚫 弃牌",
             "call": "✅ 跟注",
-            "raise": "📈 加注"
+            "check": "✅ 过牌",
+            "raise": "📈 加注",
+            "allin": "💰 全下"
         }.get(recommended_action, recommended_action)
+        
+        # 如果是 call 0，显示为 check
+        if recommended_action == "call" and advice.get("call_amount", 0) == 0:
+            action_cn = "✅ 过牌"
         
         # 构建显示内容
         content_lines = []

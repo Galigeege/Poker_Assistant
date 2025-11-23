@@ -29,10 +29,25 @@ class Config:
     
     def _load_config(self):
         """从环境变量加载配置"""
+        # 强制重新加载 .env，覆盖已有的环境变量
+        load_dotenv(override=True)
         
+        # 辅助函数：获取并过滤占位符
+        def get_clean_env(key, default=""):
+            val = os.getenv(key, default)
+            # 如果值包含 "your_" 和 "_here"，说明是未修改的模板值，视为无效
+            if "your_" in val and "_here" in val:
+                return ""
+            return val
+            
         # Deepseek API 配置
-        self.DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
+        self.DEEPSEEK_API_KEY = get_clean_env("DEEPSEEK_API_KEY", "")
         self.DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+        
+        # 多 LLM 支持配置
+        self.LLM_PROVIDER = os.getenv("LLM_PROVIDER", "deepseek").lower() # deepseek, openai, gemini
+        self.OPENAI_API_KEY = get_clean_env("OPENAI_API_KEY", "")
+        self.GEMINI_API_KEY = get_clean_env("GEMINI_API_KEY", "")
         
         # 游戏配置
         self.GAME_INITIAL_STACK = int(os.getenv("GAME_INITIAL_STACK", "1000"))
@@ -98,9 +113,13 @@ class Config:
         """验证配置是否有效"""
         errors = []
         
-        # 验证 API Key（Phase 1 暂时不强制要求）
-        if not self.DEEPSEEK_API_KEY and not self.DEBUG:
+        # 验证 API Key
+        if self.LLM_PROVIDER == "deepseek" and not self.DEEPSEEK_API_KEY:
             errors.append("⚠️  DEEPSEEK_API_KEY 未配置（AI 功能将不可用）")
+        elif self.LLM_PROVIDER == "openai" and not self.OPENAI_API_KEY:
+            errors.append("⚠️  OPENAI_API_KEY 未配置")
+        elif self.LLM_PROVIDER == "gemini" and not self.GEMINI_API_KEY:
+            errors.append("⚠️  GEMINI_API_KEY 未配置")
         
         # 验证游戏配置
         if self.GAME_INITIAL_STACK <= 0:

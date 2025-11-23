@@ -7,6 +7,7 @@ from pypokerengine.api.game import setup_config, start_poker
 
 from poker_assistant.engine.human_player import HumanPlayer
 from poker_assistant.engine.ai_opponent import AIOpponentPlayer
+from poker_assistant.engine.bot_persona import get_random_persona
 from poker_assistant.engine.game_state import GameState
 from poker_assistant.cli.game_renderer import GameRenderer
 from poker_assistant.cli.input_handler import InputHandler
@@ -19,6 +20,7 @@ from poker_assistant.ai_analysis.board_analyzer import BoardAnalyzer
 from poker_assistant.ai_analysis.review_analyzer import ReviewAnalyzer
 from poker_assistant.ai_analysis.chat_agent import ChatAgent
 from poker_assistant.ai_analysis.opponent_modeler import OpponentModeler
+from poker_assistant.engine.game_logger import GameLogger
 
 
 class GameController:
@@ -37,6 +39,9 @@ class GameController:
         self.game_state = None
         self.human_player = None
         self.ai_players = []
+        
+        # 初始化日志记录器
+        self.game_logger = GameLogger()
         
         # 初始化对手建模器（无论是否启用 AI 都可以记录对手行为）
         self.opponent_modeler = OpponentModeler()
@@ -122,7 +127,11 @@ class GameController:
         # 创建 AI 对手
         ai_difficulties = self._get_ai_difficulties(player_count - 1)
         self.ai_players = [
-            AIOpponentPlayer(difficulty=diff, shared_hole_cards=self.shared_hole_cards) 
+            AIOpponentPlayer(
+                difficulty=diff, 
+                shared_hole_cards=self.shared_hole_cards,
+                persona=get_random_persona()
+            ) 
             for diff in ai_difficulties
         ]
     
@@ -138,8 +147,16 @@ class GameController:
         config.register_player(name="你", algorithm=self.human_player)
         
         # 注册 AI 玩家
+        self.renderer.render_info("\n🎲 对手入座情况：")
         for idx, ai_player in enumerate(self.ai_players):
-            config.register_player(name=f"AI_{idx+1}", algorithm=ai_player)
+            ai_name = f"AI_{idx+1}"
+            config.register_player(name=ai_name, algorithm=ai_player)
+            
+            # 展示 AI 性格
+            if ai_player.use_ai:
+                self.renderer.render_info(f"🤖 {ai_name} [{ai_player.persona.name}]")
+            else:
+                self.renderer.render_info(f"🤖 {ai_name} [普通机器人]")
         
         return config
     
@@ -225,6 +242,16 @@ class GameController:
                 for seat in seats:
                     self.initial_stacks[seat['uuid']] = seat['stack']
                 
+                # 记录日志：开始新牌局
+                self.game_logger.start_new_hand(
+                    round_count=round_count,
+                    players=seats,
+                    small_blind=self.game_config['small_blind_amount'],
+                    big_blind=self.game_config['small_blind_amount']*2
+                )
+                # 记录玩家手牌
+                self.game_logger.update_hero_cards(hole_card)
+                
                 # 清空上一局的底牌记录（使用clear()而不是创建新字典，保持AI玩家的引用）
                 self.player_hole_cards.clear()
                 self.shared_hole_cards.clear()
@@ -279,6 +306,9 @@ class GameController:
                 community_cards = round_state.get('community_card', [])
                 pot_size = round_state['pot']['main']['amount']
                 
+                # 记录日志：街道开始
+                self.game_logger.record_street_start(street, community_cards)
+                
                 self.renderer.render_street_start(street, community_cards, pot_size)
             
             elif event_type == "game_update":
@@ -293,6 +323,15 @@ class GameController:
                         break
                 
                 is_human = (player_name == "你")
+                
+                # 记录日志：玩家行动
+                self.game_logger.record_action(
+                    street=round_state.get('street', 'preflop'),
+                    player_name=player_name,
+                    action_type=action['action'],
+                    amount=action.get('amount', 0),
+                    pot_size=round_state.get('pot', {}).get('main', {}).get('amount', 0)
+                )
                 
                 self.renderer.render_player_action(
                     player_name,
@@ -309,6 +348,13 @@ class GameController:
                 # 在摊牌时，从shared_hole_cards获取所有底牌
                 # （AI玩家会在receive_round_start时写入）
                 final_hole_cards = dict(self.shared_hole_cards)
+                
+                # 记录日志：手牌结束
+                self.game_logger.end_hand(
+                    winners=winners,
+                    showdown_hands=final_hole_cards,
+                    total_pot=round_state.get('pot', {}).get('main', {}).get('amount', 0)
+                )
                 
                 # 传递初始筹码和玩家底牌以用于展示
                 self.renderer.render_round_result(
@@ -386,8 +432,17 @@ class GameController:
                     call_amount = action.get('amount', 0)
                     break
             
+            # 规范化 valid_actions 给 AI (Call 0 -> Check)
+            ai_valid_actions = []
+            for action in valid_actions:
+                new_action = action.copy()
+                if new_action['action'] == 'call' and new_action['amount'] == 0:
+                     new_action['action'] = 'check'
+                ai_valid_actions.append(new_action)
+            
             # 获取对手行动（规范化Check/Call）
-            opponent_actions = self._get_recent_actions(round_state)
+            # 使用完整历史，以便 AI 分析整个故事线
+            opponent_actions = self._get_full_hand_history(round_state)
             
             # 获取活跃对手列表
             active_opponents = self._get_active_opponents(round_state)
@@ -401,10 +456,13 @@ class GameController:
                 pot_size=pot_size,
                 stack_size=stack_size,
                 call_amount=call_amount,
-                valid_actions=valid_actions,
+                valid_actions=ai_valid_actions, # 传入处理后的行动列表
                 opponent_actions=opponent_actions,
                 active_opponents=active_opponents
             )
+            
+            # 记录日志：AI 建议
+            self.game_logger.record_ai_advice(street, advice)
             
             return advice
         
@@ -528,7 +586,8 @@ class GameController:
                 print(f"记录对手行动失败: {e}")
     
     def _get_recent_actions(self, round_state: dict) -> List[Dict]:
-        """获取最近的对手行动（规范化Check/Call）"""
+        """获取最近的对手行动（规范化Check/Call）- 仅当前街道"""
+        # 保持兼容性，某些逻辑可能只关心当前街道
         actions = []
         action_histories = round_state.get('action_histories', {})
         
@@ -536,7 +595,7 @@ class GameController:
         street = round_state.get('street', 'preflop')
         if street in action_histories:
             for action in action_histories[street]:
-                # 记录到对手建模器
+                # 记录到对手建模器 (仍然在实时流中记录)
                 self._record_opponent_action(action, round_state)
                 
                 action_type = action.get('action', '').lower()
@@ -553,4 +612,42 @@ class GameController:
                 })
         
         return actions
+
+    def _get_full_hand_history(self, round_state: dict) -> List[Dict]:
+        """获取完整的局内行动历史（所有街道）"""
+        full_history = []
+        action_histories = round_state.get('action_histories', {})
+        
+        # 按顺序遍历所有街道
+        for street in ['preflop', 'flop', 'turn', 'river']:
+            if street in action_histories:
+                for action in action_histories[street]:
+                    action_type = action.get('action', '').lower()
+                    amount = action.get('amount', 0)
+                    
+                    # 规范化：将 call 0 转换为 check
+                    if action_type == 'call' and amount == 0:
+                        action_type = 'check'
+                    
+                    # 转换玩家 ID 为友好名称
+                    player_uuid = action.get('uuid', '')
+                    player_name = "未知"
+                    
+                    # 查找座位信息
+                    for seat in round_state.get('seats', []):
+                        if seat['uuid'] == player_uuid:
+                            if seat['name'] == "你":
+                                player_name = "我"
+                            else:
+                                player_name = seat['name'] # AI_1, AI_2 等
+                            break
+                            
+                    full_history.append({
+                        "street": street,
+                        "player": player_name, # 使用名称而非 UUID
+                        "action": action_type,
+                        "amount": amount
+                    })
+        
+        return full_history
 

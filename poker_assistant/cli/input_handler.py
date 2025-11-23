@@ -58,7 +58,7 @@ class InputHandler:
                 elif user_input == 'F' or user_input == 'FOLD':
                     return fold_action['action'], fold_action['amount']
                 
-                elif user_input == 'C' or user_input == 'CALL':
+                elif user_input in ['C', 'CALL', 'CHECK']:
                     return call_action['action'], call_action['amount']
                 
                 elif user_input == 'R' or user_input == 'RAISE':
@@ -95,16 +95,20 @@ class InputHandler:
         """显示行动提示"""
         actions = []
         actions.append("[F]老德")
-        actions.append(f"[C]跟注(${call_action['amount']})")
+        
+        if call_action['amount'] == 0:
+            actions.append("[C]heck/过牌")
+        else:
+            actions.append(f"[C]all/跟注(${call_action['amount']})")
         
         if raise_action['amount']['min'] != -1:
             min_raise = raise_action['amount']['min']
             max_raise = raise_action['amount']['max']
-            actions.append(f"[R]加注(${min_raise}-${max_raise})")
-            actions.append(f"[A]全下(${max_raise})")
+            actions.append(f"[R]aise/加注(${min_raise}-${max_raise})")
+            actions.append(f"[A]llin/全下(${max_raise})")
         
-        actions.append("[Q]提问")
-        actions.append("[H]帮助")
+        actions.append("[Q]uestion/提问")
+        actions.append("[H]elp/帮助")
         
         print("\n" + " | ".join(actions))
     

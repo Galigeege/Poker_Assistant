@@ -7,29 +7,33 @@ import json
 import os
 
 from poker_assistant.llm_service.deepseek_client import DeepseekClient
+from poker_assistant.llm_service.client_factory import get_llm_client
+from poker_assistant.llm_service.base_client import BaseLLMClient
 from poker_assistant.llm_service.prompt_manager import PromptManager
 from poker_assistant.llm_service.context_manager import ContextManager
 from poker_assistant.utils.card_utils import format_cards, get_street_name, format_chips
+from poker_assistant.utils.poker_math import PokerMath
 
 
 class StrategyAdvisor:
     """策略建议引擎（支持局内上下文）"""
     
     def __init__(self, 
-                 llm_client: Optional[DeepseekClient] = None,
+                 llm_client: Optional[BaseLLMClient] = None,
                  prompt_manager: Optional[PromptManager] = None,
                  context_manager: Optional[ContextManager] = None):
         """
         初始化策略建议引擎
         
         Args:
-            llm_client: LLM 客户端
+            llm_client: LLM 客户端 (BaseLLMClient)
             prompt_manager: Prompt 管理器
             context_manager: 上下文管理器（用于保留局内历史）
         """
-        self.llm_client = llm_client or DeepseekClient()
+        self.llm_client = llm_client or get_llm_client() # 使用工厂获取客户端
         self.prompt_manager = prompt_manager or PromptManager()
         self.context_manager = context_manager or ContextManager()
+        self.poker_math = PokerMath()
         
         # 当前局 ID
         self.current_round_id: Optional[str] = None
@@ -74,7 +78,7 @@ class StrategyAdvisor:
             stack_size: 筹码数量
             call_amount: 需要跟注的金额
             valid_actions: 可选行动
-            opponent_actions: 对手行动历史
+            opponent_actions: 对手行动历史（完整局内历史）
         
         Returns:
             建议结果字典
@@ -85,7 +89,7 @@ class StrategyAdvisor:
             community_cards_str = format_cards(community_cards) if community_cards else "无"
             street_cn = get_street_name(street)
             
-            # 格式化对手行动（传递当前底池大小用于计算下注尺度）
+            # 格式化对手行动（传递完整历史）
             if opponent_actions and len(opponent_actions) > 0:
                 actions_str = self._format_opponent_actions(opponent_actions, pot_size)
             else:
@@ -104,6 +108,22 @@ class StrategyAdvisor:
                 if opponent_summaries:
                     opponent_info = "\n\n【对手特点】\n" + "\n".join(opponent_summaries)
             
+            # 数学分析 (PokerMath)
+            math_analysis = self.poker_math.analyze_hand(
+                hole_cards=hole_cards,
+                community_cards=community_cards,
+                pot_size=pot_size,
+                to_call=call_amount
+            )
+            
+            math_context = (
+                f"\n\n【数学参考数据】\n"
+                f"- 胜率 (Equity): {math_analysis['equity_percent']}\n"
+                f"- 赔率需求 (Pot Odds): {math_analysis['pot_odds_percent']}\n"
+                f"- 期望值 (EV): {math_analysis['ev_call']} ({'正期望 +EV' if math_analysis['is_ev_positive'] else '负期望 -EV'})\n"
+                f"- 建议: 仅供参考，请结合对手风格和牌面纹理综合判断。"
+            )
+
             # 构建 prompt
             current_prompt = self.prompt_manager.format_template(
                 "strategy_advice",
@@ -117,6 +137,9 @@ class StrategyAdvisor:
                 opponent_actions=actions_str,
                 valid_actions=valid_actions_str
             )
+            
+            # 添加数学信息
+            current_prompt += math_context
             
             # 添加对手信息
             if opponent_info:
@@ -203,50 +226,75 @@ class StrategyAdvisor:
             return f"获取建议时出错: {str(e)}"
     
     def _format_opponent_actions(self, actions: List[Dict], pot_size: int = 0) -> str:
-        """格式化对手行动历史（包含下注尺度分析）"""
+        """格式化对手行动历史（包含完整局内历史和下注尺度分析）"""
         if not actions:
             return "无"
         
-        formatted = []
-        for action in actions[-5:]:  # 只显示最近5个行动
-            player = action.get("player", "对手")
-            action_type = action.get("action", "")
-            amount = action.get("amount", 0)
-            
-            action_cn = {
-                "fold": "弃牌",
-                "call": "跟注",
-                "check": "过牌",
-                "raise": "加注",
-                "allin": "全下"
-            }.get(action_type, action_type)
-            
-            if amount > 0:
-                # 计算下注尺度（相对于底池）
-                if pot_size > 0:
-                    bet_to_pot_ratio = amount / pot_size
-                    
-                    # 描述下注尺度
-                    if bet_to_pot_ratio < 0.33:
-                        size_desc = "（小额下注，约1/4底池）"
-                    elif bet_to_pot_ratio < 0.5:
-                        size_desc = "（小额下注，约1/3底池）"
-                    elif bet_to_pot_ratio < 0.75:
-                        size_desc = "（中等下注，约1/2-2/3底池）"
-                    elif bet_to_pot_ratio < 1.2:
-                        size_desc = "（标准下注，约底池大小）"
-                    elif bet_to_pot_ratio < 2.0:
-                        size_desc = "（超额下注，约1.5倍底池）"
-                    else:
-                        size_desc = "（大额超额下注，2倍底池以上）"
-                    
-                    formatted.append(f"{player} {action_cn} ${amount}{size_desc}")
-                else:
-                    formatted.append(f"{player} {action_cn} ${amount}")
-            else:
-                formatted.append(f"{player} {action_cn}")
+        # 检查是否是完整历史格式（带 'street' 字段）
+        is_full_history = 'street' in actions[0] if actions else False
         
-        return "；".join(formatted)
+        if is_full_history:
+            # 按街道分组格式化
+            formatted_lines = []
+            current_street = ""
+            
+            for action in actions:
+                street = action.get('street', 'unknown')
+                if street != current_street:
+                    current_street = street
+                    formatted_lines.append(f"\n[{get_street_name(street)}]")
+                
+                player = action.get("player", "对手")
+                action_type = action.get("action", "")
+                amount = action.get("amount", 0)
+                
+                line = self._format_single_action(player, action_type, amount, pot_size)
+                formatted_lines.append(line)
+            
+            return "\n".join(formatted_lines)
+        else:
+            # 兼容旧格式（仅当前街道）
+            formatted = []
+            for action in actions[-5:]:
+                player = action.get("player", "对手")
+                action_type = action.get("action", "")
+                amount = action.get("amount", 0)
+                formatted.append(self._format_single_action(player, action_type, amount, pot_size))
+            return "；".join(formatted)
+
+    def _format_single_action(self, player, action_type, amount, pot_size):
+        """格式化单个行动"""
+        action_cn = {
+            "fold": "弃牌",
+            "call": "跟注",
+            "check": "过牌",
+            "raise": "加注",
+            "allin": "全下"
+        }.get(action_type, action_type)
+        
+        if amount > 0:
+            # 计算下注尺度（相对于底池）
+            # 注意：这里的 pot_size 是当前总底池，对于历史行动可能不完全准确，
+            # 但作为近似参考已足够
+            size_desc = ""
+            if pot_size > 0:
+                bet_to_pot_ratio = amount / pot_size
+                if bet_to_pot_ratio < 0.33:
+                    size_desc = "（小）"
+                elif bet_to_pot_ratio < 0.5:
+                    size_desc = "（小）"
+                elif bet_to_pot_ratio < 0.75:
+                    size_desc = "（中）"
+                elif bet_to_pot_ratio < 1.2:
+                    size_desc = "（标准）"
+                elif bet_to_pot_ratio < 2.0:
+                    size_desc = "（超额）"
+                else:
+                    size_desc = "（巨大）"
+            
+            return f"{player} {action_cn} ${amount}{size_desc}"
+        else:
+            return f"{player} {action_cn}"
     
     def _format_valid_actions(self, valid_actions: List[Dict]) -> str:
         """格式化可选行动"""
@@ -270,7 +318,7 @@ class StrategyAdvisor:
     
     def _parse_response(self, response: str) -> Dict[str, Any]:
         """
-        解析 AI 响应
+        解析 AI 响应 (JSON)
         
         Args:
             response: AI 响应文本
@@ -278,24 +326,47 @@ class StrategyAdvisor:
         Returns:
             解析后的建议字典
         """
-        # 尝试提取关键信息
         advice = {
             "reasoning": response,
-            "recommended_action": self._extract_action(response),
+            "primary_strategy": None,
+            "alternative_strategy": None,
+            "recommended_action": "call", # 默认回退
             "confidence": "medium"
         }
         
-        # 尝试解析 JSON（如果 AI 返回了结构化数据）
         try:
-            # 查找 JSON 块
-            if "{" in response and "}" in response:
-                start = response.index("{")
-                end = response.rindex("}") + 1
-                json_str = response[start:end]
-                parsed = json.loads(json_str)
-                advice.update(parsed)
-        except:
-            pass
+            # 1. 清理 Markdown 标记
+            content = response.replace("```json", "").replace("```", "").strip()
+            
+            # 2. 查找 JSON 块 (如果还有其他文本)
+            if "{" in content:
+                start = content.find("{")
+                end = content.rfind("}") + 1
+                content = content[start:end]
+            
+            # 3. 解析 JSON
+            parsed = json.loads(content)
+            advice.update(parsed)
+            
+            # 4. 为了兼容旧代码，将 primary_strategy 的 action 映射到 recommended_action
+            if "primary_strategy" in parsed and parsed["primary_strategy"]:
+                action = parsed["primary_strategy"]["action"].lower()
+                if action == "check":
+                    advice["recommended_action"] = "call" 
+                    advice["call_amount"] = 0 # 标记为 check
+                elif action == "all_in":
+                    advice["recommended_action"] = "allin"
+                else:
+                    advice["recommended_action"] = action
+                
+                # 映射金额
+                if "amount" in parsed["primary_strategy"]:
+                    advice["raise_amount"] = parsed["primary_strategy"]["amount"]
+            
+        except Exception as e:
+            # 解析失败，回退到文本提取
+            print(f"JSON解析失败: {e}, 尝试文本提取")
+            advice["recommended_action"] = self._extract_action(response)
         
         return advice
     
@@ -335,41 +406,64 @@ class StrategyAdvisor:
         """
         lines = []
         
-        # 推荐行动
-        action = advice.get("recommended_action", "")
-        action_cn = {
-            "fold": "弃牌",
-            "call": "跟注",
-            "raise": "加注"
-        }.get(action, action)
+        # 1. 主选策略 (Primary Strategy)
+        primary = advice.get("primary_strategy")
+        if primary:
+            action = primary.get("action", "").lower()
+            amount = primary.get("amount", 0)
+            frequency = primary.get("frequency", "")
+            
+            action_cn = self._translate_action(action)
+            
+            amount_str = ""
+            if action == "raise":
+                amount_str = f" ${amount}"
+            
+            lines.append(f"🎯 主选策略: {action_cn}{amount_str} ({frequency})")
+        else:
+            # 兼容旧逻辑
+            action = advice.get("recommended_action", "")
+            action_cn = self._translate_action(action)
+            lines.append(f"💡 推荐行动: {action_cn}")
+            
+        # 2. 备选策略 (Alternative Strategy)
+        alternative = advice.get("alternative_strategy")
+        if alternative:
+            action = alternative.get("action", "").lower()
+            amount = alternative.get("amount", 0)
+            frequency = alternative.get("frequency", "")
+            condition = alternative.get("condition", "")
+            
+            action_cn = self._translate_action(action)
+            
+            amount_str = ""
+            if action == "raise":
+                amount_str = f" ${amount}"
+            
+            lines.append(f"🔄 备选策略: {action_cn}{amount_str} ({frequency})")
+            if condition:
+                lines.append(f"   └─ 适用条件: {condition}")
         
-        lines.append(f"💡 推荐行动: {action_cn}")
-        
-        # 建议金额（如果是加注）
-        if action == "raise" and "raise_amount" in advice:
-            amount = advice["raise_amount"]
-            lines.append(f"💰 建议金额: ${amount}")
-        
-        # 理由
+        # 3. 理由
         reasoning = advice.get("reasoning", "")
         if reasoning:
-            lines.append(f"\n📝 理由:\n{reasoning}")
+            lines.append(f"\n📝 深度分析:\n{reasoning}")
         
-        # 胜率（如果有）
+        # 4. 数学指标
         if "win_probability" in advice:
             win_prob = advice["win_probability"]
             if isinstance(win_prob, (int, float)):
                 lines.append(f"\n📊 胜率估算: {win_prob*100:.0f}%")
         
-        # 风险等级（如果有）
-        if "risk_level" in advice:
-            risk = advice["risk_level"]
-            risk_icon = {
-                "low": "🟢",
-                "medium": "🟡",
-                "high": "🔴"
-            }.get(risk, "⚪")
-            lines.append(f"{risk_icon} 风险等级: {risk}")
-        
         return "\n".join(lines)
+
+    def _translate_action(self, action: str) -> str:
+        """翻译行动名称"""
+        action = action.lower()
+        if action == "fold": return "🚫 弃牌"
+        if action == "call": return "✅ 跟注"
+        if action == "check": return "✅ 过牌"
+        if action == "raise": return "📈 加注"
+        if action == "all_in" or action == "allin": return "💰 全下"
+        return action
 
