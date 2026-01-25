@@ -32,6 +32,7 @@ python-multipart>=0.0.6
 # Database
 sqlalchemy>=2.0.23
 alembic>=1.12.1
+psycopg2-binary>=2.9.0  # PostgreSQL 驱动（生产环境必需）
 
 # Testing
 pytest>=7.0.0
