@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: poker-assistant-postgres
+    environment:
+      POSTGRES_USER: pokeruser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+      POSTGRES_DB: poker_assistant
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pokeruser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - poker-network
+
+  # FastAPI 后端
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: poker-assistant-backend
+    environment:
+      - DATABASE_URL=postgresql://pokeruser:${POSTGRES_PASSWORD:-change_me_in_production}@postgres:5432/poker_assistant
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change_me_in_production}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRATION_HOURS=${JWT_EXPIRATION_HOURS:-24}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com/v1}
+      - LLM_PROVIDER=${LLM_PROVIDER:-deepseek}
+      - GAME_INITIAL_STACK=${GAME_INITIAL_STACK:-1000}
+      - GAME_SMALL_BLIND=${GAME_SMALL_BLIND:-5}
+      - GAME_BIG_BLIND=${GAME_BIG_BLIND:-10}
+      - GAME_MAX_ROUND=${GAME_MAX_ROUND:-100}
+      - GAME_PLAYER_COUNT=${GAME_PLAYER_COUNT:-6}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - poker-network
+    # 不直接暴露端口，通过 Nginx 访问
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: poker-assistant-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro
+      - ./deploy/nginx-ssl:/etc/nginx/ssl:ro  # SSL 证书目录（如果使用 Let's Encrypt，需要挂载）
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - poker-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  poker-network:
+    driver: bridge
+

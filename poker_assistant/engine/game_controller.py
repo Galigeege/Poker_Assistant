@@ -21,18 +21,31 @@ from poker_assistant.ai_analysis.review_analyzer import ReviewAnalyzer
 from poker_assistant.ai_analysis.chat_agent import ChatAgent
 from poker_assistant.ai_analysis.opponent_modeler import OpponentModeler
 from poker_assistant.engine.game_logger import GameLogger
+from poker_assistant.llm_service.client_factory import get_llm_client
 
 
 class GameController:
     """游戏控制器 - 管理整个游戏流程"""
     
-    def __init__(self, config: Config):
+    def __init__(
+        self,
+        config: Config,
+        game_overrides: Optional[Dict[str, Any]] = None,
+        llm_provider: Optional[str] = None,
+        llm_api_key: Optional[str] = None
+    ):
         """
         Args:
             config: 游戏配置对象
+            game_overrides: 覆盖游戏配置（用于 web 场景下按 session 配置启动）
+            llm_provider: 覆盖 LLM provider（默认读取环境变量）
+            llm_api_key: 覆盖 LLM API Key（用于按用户配置）
         """
         self.config = config
         self.game_config = config.get_game_config()
+        if game_overrides:
+            # 允许按 session 覆盖盲注/初始筹码等
+            self.game_config.update(game_overrides)
         self.ai_config = config.get_ai_config()
         self.renderer = GameRenderer()
         self.input_handler = InputHandler(chat_callback=self._handle_chat)
@@ -61,14 +74,20 @@ class GameController:
         self.shared_hole_cards = {}  # {uuid: [card1, card2]}
         
         # 初始化 AI 分析引擎（如果 API Key 已配置）
-        self.ai_enabled = bool(config.DEEPSEEK_API_KEY and config.DEEPSEEK_API_KEY != "your_api_key_here")
+        # 规则：如果传入 llm_api_key，则优先认为 AI 可用；否则按环境变量判断
+        has_user_key = bool(llm_api_key)
+        has_env_key = bool(config.DEEPSEEK_API_KEY and config.DEEPSEEK_API_KEY != "your_api_key_here")
+        self.ai_enabled = has_user_key or has_env_key
         if self.ai_enabled:
             try:
-                self.strategy_advisor = StrategyAdvisor()
-                self.opponent_analyzer = OpponentAnalyzer()
-                self.board_analyzer = BoardAnalyzer()
-                self.review_analyzer = ReviewAnalyzer()
-                self.chat_agent = ChatAgent()
+                provider = llm_provider or getattr(config, "LLM_PROVIDER", None) or "deepseek"
+                # 为本 GameController 统一创建一个 LLM client（按用户 key 覆盖）
+                llm_client = get_llm_client(provider=provider, api_key=llm_api_key)
+                self.strategy_advisor = StrategyAdvisor(llm_client=llm_client)
+                self.opponent_analyzer = OpponentAnalyzer(llm_client=llm_client)
+                self.board_analyzer = BoardAnalyzer(llm_client=llm_client)
+                self.review_analyzer = ReviewAnalyzer(provider=provider, api_key=llm_api_key)
+                self.chat_agent = ChatAgent(llm_client=llm_client)
                 
                 # 设置对手建模器
                 self.strategy_advisor.set_opponent_modeler(self.opponent_modeler)
@@ -130,7 +149,8 @@ class GameController:
             AIOpponentPlayer(
                 difficulty=diff, 
                 shared_hole_cards=self.shared_hole_cards,
-                persona=get_random_persona()
+                persona=get_random_persona(),
+                llm_client=getattr(self, "strategy_advisor", None).llm_client if getattr(self, "ai_enabled", False) else None
             ) 
             for diff in ai_difficulties
         ]
@@ -416,6 +436,13 @@ class GameController:
             AI 建议字典
         """
         try:
+            # 确保 round_state 包含正确的 dealer_btn（PyPokerEngine 可能不会传递）
+            # 使用我们管理的 current_dealer_btn
+            if 'dealer_btn' not in round_state or round_state.get('dealer_btn') is None:
+                round_state['dealer_btn'] = self.current_dealer_btn
+                if self.config.DEBUG:
+                    print(f"[_get_ai_advice] 注入 dealer_btn 到 round_state: {self.current_dealer_btn}")
+            
             # 提取必要信息
             community_cards = round_state.get('community_card', [])
             street = round_state.get('street', 'preflop')
@@ -424,6 +451,14 @@ class GameController:
             
             # 获取玩家位置
             position = self._get_my_position(round_state)
+            
+            # 调试日志：记录位置信息
+            if self.config.DEBUG:
+                dealer_btn_from_state = round_state.get('dealer_btn')
+                print(f"[_get_ai_advice] 计算的位置: {position}")
+                print(f"[_get_ai_advice] round_state.dealer_btn: {dealer_btn_from_state}")
+                print(f"[_get_ai_advice] self.current_dealer_btn: {self.current_dealer_btn}")
+                print(f"[_get_ai_advice] 当前回合ID: {self.current_round_id}")
             
             # 计算跟注金额
             call_amount = 0
@@ -496,8 +531,19 @@ class GameController:
             if my_idx is None:
                 return "Unknown"
             
-            # 获取庄位和有筹码的玩家
-            dealer_btn = self.current_dealer_btn  # 使用我们管理的Button位置
+            # 获取庄位：优先使用 round_state 中的 dealer_btn，如果没有则使用 self.current_dealer_btn
+            # 注意：PyPokerEngine 可能不会在 round_state 中传递 dealer_btn，
+            # 所以我们需要使用自己管理的 current_dealer_btn
+            dealer_btn_from_state = round_state.get('dealer_btn')
+            if dealer_btn_from_state is not None:
+                dealer_btn = dealer_btn_from_state
+                if self.config.DEBUG:
+                    print(f"[_get_my_position] 使用 round_state 中的 dealer_btn: {dealer_btn}")
+            else:
+                dealer_btn = self.current_dealer_btn
+                if self.config.DEBUG:
+                    print(f"[_get_my_position] round_state 中没有 dealer_btn，使用 self.current_dealer_btn: {dealer_btn}")
+            
             active_seats = [idx for idx, s in enumerate(seats) if s['stack'] > 0]
             active_count = len(active_seats)
             

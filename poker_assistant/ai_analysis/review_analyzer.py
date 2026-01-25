@@ -2,28 +2,40 @@
 复盘分析引擎
 对已结束的对局进行深度分析
 """
+import json
+import os
 from typing import Dict, Any, List, Optional
 
-from poker_assistant.llm_service.deepseek_client import DeepseekClient
-from poker_assistant.llm_service.prompt_manager import PromptManager
+from poker_assistant.llm_service.client_factory import get_llm_client
 from poker_assistant.utils.card_utils import format_cards
 
 
 class ReviewAnalyzer:
     """复盘分析引擎"""
     
-    def __init__(self,
-                 llm_client: Optional[DeepseekClient] = None,
-                 prompt_manager: Optional[PromptManager] = None):
-        """
-        初始化复盘分析引擎
+    def __init__(
+        self,
+        provider: Optional[str] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        model: Optional[str] = None
+    ):
+        """初始化复盘分析引擎"""
+        self.llm_client = get_llm_client(
+            provider=provider,
+            api_key=api_key,
+            base_url=base_url,
+            model=model
+        )
         
-        Args:
-            llm_client: LLM 客户端
-            prompt_manager: Prompt 管理器
-        """
-        self.llm_client = llm_client or DeepseekClient()
-        self.prompt_manager = prompt_manager or PromptManager()
+        # 加载结构化 prompt 模板
+        self.prompt_template = ""
+        try:
+            prompt_path = os.path.join(os.path.dirname(__file__), '../prompts/review_analysis_structured.txt')
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                self.prompt_template = f.read()
+        except Exception as e:
+            print(f"[ReviewAnalyzer] Error loading prompt template: {e}")
     
     def generate_review(self,
                        round_count: int,
@@ -32,9 +44,9 @@ class ReviewAnalyzer:
                        action_history: List[Dict],
                        winners: List[Dict],
                        hand_info: List[Dict],
-                       final_pot: int) -> str:
+                       final_pot: int) -> Dict[str, Any]:
         """
-        生成复盘报告
+        生成结构化复盘报告
         
         Args:
             round_count: 回合数
@@ -46,12 +58,12 @@ class ReviewAnalyzer:
             final_pot: 最终底池
         
         Returns:
-            复盘报告文本
+            结构化的复盘报告 dict
         """
         try:
             # 格式化数据
             hole_cards_str = format_cards(hole_cards)
-            community_cards_str = format_cards(community_cards)
+            community_cards_str = format_cards(community_cards) if community_cards else "无"
             
             # 格式化赢家
             winners_str = ", ".join([w.get("name", "未知") for w in winners])
@@ -63,34 +75,63 @@ class ReviewAnalyzer:
             # 格式化行动历史
             history_str = self._format_action_history(action_history)
             
-            # 格式化手牌信息
-            hand_info_str = self._format_hand_info(hand_info)
-            
             # 构建 prompt
-            prompt = self.prompt_manager.format_template(
-                "review_analysis",
-                round_count=round_count,
-                result=result,
-                winners=winners_str,
+            prompt = self.prompt_template.format(
                 hole_cards=hole_cards_str,
                 community_cards=community_cards_str,
                 final_pot=final_pot,
-                action_history=history_str,
-                hand_info=hand_info_str
+                result=result,
+                winners=winners_str,
+                action_history=history_str
             )
             
-            # 调用 LLM
+            # 调用 LLM（详细分析需要足够的 token）
             messages = [{"role": "user", "content": prompt}]
             response = self.llm_client.chat(
                 messages, 
-                temperature=0.7, 
-                max_tokens=1000
+                temperature=0.4,  # 适中的温度
+                max_tokens=1500   # 足够的 token 用于详细分析
             )
             
-            return response
+            # 解析 JSON 响应
+            return self._parse_response(response)
         
         except Exception as e:
-            return f"复盘分析暂时不可用（{str(e)}）"
+            print(f"[ReviewAnalyzer] Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return {"error": f"复盘分析暂时不可用（{str(e)}）"}
+    
+    def _parse_response(self, response: str) -> Dict[str, Any]:
+        """解析 LLM 响应，提取 JSON"""
+        try:
+            # 清理可能的 markdown 标记
+            content = response.strip()
+            
+            # 尝试找到 JSON 块
+            if "```json" in content:
+                start = content.find("```json") + 7
+                end = content.find("```", start)
+                if end > start:
+                    content = content[start:end].strip()
+            elif "```" in content:
+                start = content.find("```") + 3
+                end = content.find("```", start)
+                if end > start:
+                    content = content[start:end].strip()
+            
+            # 解析 JSON
+            result = json.loads(content)
+            return result
+            
+        except json.JSONDecodeError as e:
+            print(f"[ReviewAnalyzer] JSON parse error: {e}")
+            print(f"[ReviewAnalyzer] Raw response: {response[:500]}...")
+            # 返回原始内容作为 fallback
+            return {
+                "content": response,
+                "error": "AI 返回了非结构化内容"
+            }
     
     def _format_action_history(self, history: List[Dict]) -> str:
         """格式化行动历史"""
@@ -111,53 +152,32 @@ class ReviewAnalyzer:
                 current_street = street
                 street_names = {
                     "preflop": "【翻牌前】",
-                    "flop": "【翻牌】",
-                    "turn": "【转牌】",
-                    "river": "【河牌】"
+                    "flop": "【翻牌圈】",
+                    "turn": "【转牌圈】",
+                    "river": "【河牌圈】"
                 }
                 formatted.append(street_names.get(street, f"【{street}】"))
             
-            # 行动
+            # 规范化行动：call 0 = check（过牌）
+            action_lower = action.lower()
+            if action_lower == "call" and (amount == 0 or amount is None):
+                action_lower = "check"
+            
+            # 行动翻译
             action_cn = {
                 "fold": "弃牌",
                 "call": "跟注",
                 "raise": "加注",
-                "allin": "全下"
-            }.get(action, action)
+                "allin": "全下",
+                "check": "过牌"
+            }.get(action_lower, action)
             
-            if amount > 0:
-                formatted.append(f"  {player}: {action_cn} ${amount}")
+            # 标记玩家行动
+            player_label = "你" if player == "你" else player
+            
+            if amount and amount > 0 and action_lower not in ["fold", "check"]:
+                formatted.append(f"  {player_label}: {action_cn} ${amount}")
             else:
-                formatted.append(f"  {player}: {action_cn}")
+                formatted.append(f"  {player_label}: {action_cn}")
         
         return "\n".join(formatted)
-    
-    def _format_hand_info(self, hand_info: List[Dict]) -> str:
-        """格式化手牌信息"""
-        if not hand_info:
-            return "无手牌信息"
-        
-        formatted = []
-        for info in hand_info:
-            name = info.get("name", "未知")
-            hand = info.get("hand", {})
-            hand_type = hand.get("hand", {}).get("hand", "未知")
-            
-            # 手牌类型中文化
-            hand_names = {
-                "highcard": "高牌",
-                "onepair": "一对",
-                "twopair": "两对",
-                "threecard": "三条",
-                "straight": "顺子",
-                "flush": "同花",
-                "fullhouse": "葫芦",
-                "fourcard": "四条",
-                "straightflush": "同花顺"
-            }
-            hand_type_cn = hand_names.get(hand_type, hand_type)
-            
-            formatted.append(f"{name}: {hand_type_cn}")
-        
-        return "；".join(formatted)
-

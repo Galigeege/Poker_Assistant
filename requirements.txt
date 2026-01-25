@@ -1,5 +1,11 @@
 # Core Dependencies
-PyPokerEngine==1.0.7
+PyPokerEngine==1.0.1
+
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+websockets>=12.0
+gunicorn>=21.0.0  # Production WSGI server for Azure App Service
 
 # LLM Service
 openai>=1.0.0  # Deepseek 使用兼容 OpenAI 的 API
@@ -15,7 +21,17 @@ python-dotenv>=1.0.0
 
 # Utils
 pydantic>=2.0.0
+pydantic[email]>=2.0.0  # 支持 EmailStr 验证
 pyyaml>=6.0
+
+# Authentication & Security
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0  # 直接使用 bcrypt（替代 passlib）
+python-multipart>=0.0.6
+
+# Database
+sqlalchemy>=2.0.23
+alembic>=1.12.1
 
 # Testing
 pytest>=7.0.0

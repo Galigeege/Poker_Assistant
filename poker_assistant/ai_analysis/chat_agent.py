@@ -4,7 +4,8 @@
 """
 from typing import Dict, Any, List, Optional
 
-from poker_assistant.llm_service.deepseek_client import DeepseekClient
+from poker_assistant.llm_service.client_factory import get_llm_client
+from poker_assistant.llm_service.base_client import BaseLLMClient
 from poker_assistant.llm_service.prompt_manager import PromptManager
 from poker_assistant.llm_service.context_manager import ContextManager
 
@@ -13,7 +14,7 @@ class ChatAgent:
     """AI 对话代理"""
     
     def __init__(self,
-                 llm_client: Optional[DeepseekClient] = None,
+                 llm_client: Optional[BaseLLMClient] = None,
                  prompt_manager: Optional[PromptManager] = None,
                  context_manager: Optional[ContextManager] = None):
         """
@@ -24,7 +25,7 @@ class ChatAgent:
             prompt_manager: Prompt 管理器
             context_manager: 上下文管理器
         """
-        self.llm_client = llm_client or DeepseekClient()
+        self.llm_client = llm_client or get_llm_client()
         self.prompt_manager = prompt_manager or PromptManager()
         self.context_manager = context_manager or ContextManager()
         

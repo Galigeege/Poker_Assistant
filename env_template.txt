@@ -58,3 +58,20 @@ AI_ENABLE_CHAT=true
 DEBUG=false
 LOG_LEVEL=INFO
 
+# ==============================================
+# 数据库配置 (Database Config)
+# ==============================================
+# SQLite (开发环境，默认)
+DATABASE_URL=sqlite:///./data/poker_assistant.db
+
+# PostgreSQL (生产环境，示例)
+# DATABASE_URL=postgresql://user:password@localhost/poker_assistant
+
+# ==============================================
+# JWT 认证配置 (JWT Authentication)
+# ==============================================
+# 生产环境请务必修改此密钥！
+JWT_SECRET_KEY=your-secret-key-change-in-production-min-32-chars
+JWT_ALGORITHM=HS256
+JWT_EXPIRATION_HOURS=24
+

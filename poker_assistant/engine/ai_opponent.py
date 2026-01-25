@@ -9,6 +9,7 @@ from typing import Dict, Tuple, List, Optional
 from pypokerengine.players import BasePokerPlayer
 
 from poker_assistant.llm_service.client_factory import get_llm_client
+from poker_assistant.llm_service.base_client import BaseLLMClient
 from poker_assistant.engine.bot_persona import BotPersona, get_random_persona
 from poker_assistant.utils.card_utils import format_cards
 from poker_assistant.utils.config import Config
@@ -21,7 +22,13 @@ class AIOpponentPlayer(BasePokerPlayer):
     支持 LLM 驱动的个性化决策，具备独立的性格和上下文
     """
     
-    def __init__(self, difficulty: str = "medium", shared_hole_cards: dict = None, persona: BotPersona = None):
+    def __init__(
+        self,
+        difficulty: str = "medium",
+        shared_hole_cards: dict = None,
+        persona: BotPersona = None,
+        llm_client: Optional[BaseLLMClient] = None
+    ):
         """
         Args:
             difficulty: 难度级别 ('easy', 'medium', 'hard') - 仅作为 Fallback 策略使用
@@ -42,15 +49,21 @@ class AIOpponentPlayer(BasePokerPlayer):
         self.poker_math = PokerMath() # 初始化数学工具
         
         # 初始化 API 客户端
-        config = Config()
-        # 只要配置了任意一个 Provider 的 Key，就可以启用 AI
-        if config.DEEPSEEK_API_KEY or config.OPENAI_API_KEY or config.GEMINI_API_KEY:
-            try:
-                self.client = get_llm_client()
-                self.use_ai = True
-            except Exception as e:
-                print(f"Warning: Failed to initialize AI client for bot: {e}")
-                self.use_ai = False
+        # 优先使用外部注入的 llm_client（用于按 session/user 的 key 运行）
+        if llm_client is not None:
+            self.client = llm_client
+            self.use_ai = True
+        else:
+            # 兼容旧逻辑：从环境变量读取 key
+            config = Config()
+            # 只要配置了任意一个 Provider 的 Key，就可以启用 AI
+            if config.DEEPSEEK_API_KEY or config.OPENAI_API_KEY or config.GEMINI_API_KEY:
+                try:
+                    self.client = get_llm_client()
+                    self.use_ai = True
+                except Exception as e:
+                    print(f"Warning: Failed to initialize AI client for bot: {e}")
+                    self.use_ai = False
             
         # 加载 Prompt 模板
         self.prompt_template = ""
@@ -161,15 +174,16 @@ class AIOpponentPlayer(BasePokerPlayer):
         """校验并修正 AI 的决策"""
         valid_types = [a['action'] for a in valid_actions]
         
+        # 获取 call 信息，用于判断是否可以 check（call amount = 0 表示 check）
+        call_info = next((a for a in valid_actions if a['action'] == 'call'), None)
+        can_check = call_info is not None and call_info['amount'] == 0
+        
         # 1. 修正 Check/Call 混淆
-        # 如果 AI 说 Check 但只能 Call -> 视为 Call
-        # 如果 AI 说 Call 但金额为 0 -> 视为 Check (如果有 Check 选项)
-        if action_type == 'check' and 'check' not in valid_types and 'call' in valid_types:
-            # 检查 Call 金额是否为 0（即 Check）
-            call_info = next((a for a in valid_actions if a['action'] == 'call'), None)
-            if call_info and call_info['amount'] > 0:
-                action_type = 'call'
-                amount = call_info['amount']
+        # PyPokerEngine 中没有 'check'，而是用 call amount=0 表示
+        # 如果 AI 说 Check，转换为 call
+        if action_type == 'check':
+            action_type = 'call'
+            amount = 0
         
         # 2. 修正 Raise 金额
         if action_type == 'raise':
@@ -188,17 +202,19 @@ class AIOpponentPlayer(BasePokerPlayer):
         # 3. 获取最终合法的动作对象
         chosen_action = next((a for a in valid_actions if a['action'] == action_type), None)
         
-        # 如果 AI 给出的动作不合法，默认 Fold 或 Check
+        # 如果 AI 给出的动作不合法，优先选择 Check（如果可以），否则 Fold
         if not chosen_action:
-            if 'check' in valid_types:
-                return 'check', 0
+            # 可以 Check（call amount = 0）时，绝不 Fold
+            if can_check:
+                return 'call', 0
+            # 否则尝试 Call
+            if 'call' in valid_types:
+                return 'call', call_info['amount'] if call_info else 0
             return 'fold', 0
             
-        # 对于 Call 和 Check，金额通常由引擎决定，但 PyPokerEngine 要求返回金额
+        # 对于 Call，金额由引擎决定
         if action_type == 'call':
             amount = chosen_action['amount']
-        elif action_type == 'check':
-            amount = 0
             
         return action_type, amount
 

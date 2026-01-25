@@ -17,7 +17,7 @@ class OpenAICompatibleClient(BaseLLMClient):
                  model: str,
                  default_temperature: float = 0.7,
                  default_max_tokens: int = 2000,
-                 timeout: int = 30):
+                 timeout: int = 120):  # 增加到 120 秒
         super().__init__(api_key, model)
         self.base_url = base_url
         self.default_temperature = default_temperature
