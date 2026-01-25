@@ -1,0 +1,26 @@
+version: '3.8'
+
+# Cloudflare Tunnel 服务
+# 使用方式: docker-compose -f docker-compose.yml -f docker-compose.cloudflare.yml up -d
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: poker-assistant-cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    volumes:
+      # 如果使用配置文件方式，取消注释：
+      # - ~/.cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      # - ~/.cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - poker-network
+
+networks:
+  poker-network:
+    external: true
+

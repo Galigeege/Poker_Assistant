@@ -1,0 +1,16 @@
+# Cloudflare Pages 配置文件（可选）
+# 如果使用 Cloudflare Pages，可以在 Dashboard 中配置，此文件仅供参考
+
+[build]
+command = "cd frontend && npm install && npm run build"
+cwd = "."
+watch_dir = "frontend/src"
+
+[env.production]
+VITE_API_BASE_URL = "https://api.yourdomain.com"
+VITE_WS_URL = "wss://ws.yourdomain.com"
+
+[env.preview]
+VITE_API_BASE_URL = "https://api.yourdomain.com"
+VITE_WS_URL = "wss://ws.yourdomain.com"
+
