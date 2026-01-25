@@ -9,14 +9,14 @@ export PYTHONPATH="${PYTHONPATH}:/home/site/wwwroot"
 # 进入项目目录
 cd /home/site/wwwroot
 
-# 初始化数据库（如果表不存在）
+# 初始化数据库（如果表不存在）- 使用超时避免阻塞
 echo "Initializing database..."
-python3 -c "from backend.database.session import init_db; init_db()" || echo "Database initialization skipped or failed"
+timeout 30 python3 -c "from backend.database.session import init_db; init_db()" 2>&1 || echo "Database initialization skipped or failed (timeout or error)"
 
 # 启动 Gunicorn + Uvicorn
 echo "Starting Gunicorn with Uvicorn workers..."
 exec gunicorn backend.main:app \
-  --workers 2 \
+  --workers 1 \
   --worker-class uvicorn.workers.UvicornWorker \
   --bind 0.0.0.0:8000 \
   --timeout 120 \
