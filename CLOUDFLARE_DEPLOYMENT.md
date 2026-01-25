@@ -72,10 +72,12 @@ npm run build
    - **Build command**: `cd frontend && npm install && npm run build`
    - **Build output directory**: `frontend/dist`
    - **Root directory**: `/` (项目根目录)
+   - **Deploy command**: （留空，不需要部署命令）
    - **Node version**: `20` (在环境变量中设置 `NODE_VERSION=20`)
 
-**重要：** 
-- 确保在环境变量中添加 `SKIP_PYTHON_BUILD=true`，防止 Cloudflare Pages 尝试构建后端 Python 代码
+**重要配置：** 
+- **Deploy command 必须留空**：Cloudflare Pages 会自动部署构建好的静态文件，不需要 `wrangler deploy`
+- 环境变量中添加 `SKIP_PYTHON_BUILD=true`（虽然可能不会完全阻止 Python 检测，但不影响构建）
 - 如果使用 `main` 分支，确保 `main` 分支已包含最新的前端代码和修复
 
 #### 1.3 配置环境变量
