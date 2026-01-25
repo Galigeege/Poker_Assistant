@@ -12,29 +12,33 @@ Failed: error occurred while running deploy command
 
 ## ✅ 解决方案
 
-### 方法 1: 清空 Deploy Command（推荐）
+### 方法 1: 使用空命令（推荐）
 
-在 Cloudflare Pages 项目设置中：
-
-1. 进入 **Settings** → **Builds & deployments**
-2. 找到 **Deploy command** 字段
-3. **完全清空**（删除所有内容，包括空格）
-4. 保存设置
-5. 重新触发部署
-
-### 方法 2: 设置 Deploy Command 为空命令
-
-如果无法完全清空，可以设置为：
+如果 Cloudflare Pages 要求 Deploy command 必须填写，使用以下命令：
 
 ```bash
-echo "Deploy skipped - static files only"
+echo "Static files deployment - no action needed"
 ```
 
-### 方法 3: 删除 wrangler.toml（如果存在）
+或者更简单的：
 
-如果项目中有 `wrangler.toml` 文件，Cloudflare Pages 可能会自动检测并尝试使用它。
+```bash
+true
+```
 
-**注意**：`frontend/wrangler.toml` 只是参考文件，不会影响 Pages 部署。
+这个命令会立即成功退出，不会执行任何操作。
+
+### 方法 2: 使用注释命令
+
+```bash
+# Static files only - no deploy command needed
+```
+
+### 方法 3: 使用 exit 0
+
+```bash
+exit 0
+```
 
 ## 📋 正确的 Cloudflare Pages 配置
 
@@ -44,7 +48,7 @@ echo "Deploy skipped - static files only"
 - **Build command**: `cd frontend && npm install && npm run build`
 - **Build output directory**: `frontend/dist`
 - **Root directory**: `/` (项目根目录)
-- **Deploy command**: （**留空**）
+- **Deploy command**: `true` 或 `echo "Static files deployment - no action needed"`
 
 ### Environment Variables
 
@@ -58,15 +62,21 @@ VITE_WS_URL=wss://healing-appraisal-suspected-circumstances.trycloudflare.com
 
 部署成功后，应该看到：
 - ✅ Build command completed
+- ✅ Deploy command completed（但不会执行 wrangler）
 - ✅ 没有 wrangler 相关错误
 - ✅ 静态文件成功部署
 
-## 💡 为什么不需要 Deploy Command？
+## 💡 为什么这些命令有效？
+
+- `true` - 总是返回成功退出码，不执行任何操作
+- `echo "..."` - 只输出文本，不执行任何操作
+- `exit 0` - 立即成功退出
+
+这些命令都不会尝试部署到 Workers，只是满足 Cloudflare Pages 的必填要求。
+
+## ⚠️ 重要提示
 
 Cloudflare Pages 会自动：
 1. 执行 Build command
 2. 将 Build output directory 中的文件部署到 CDN
-3. 不需要额外的部署命令
-
-`wrangler deploy` 是用于 Cloudflare Workers 的，不是用于静态网站的。
-
+3. Deploy command 只是满足必填要求，实际部署是自动的
