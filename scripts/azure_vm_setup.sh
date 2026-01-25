@@ -86,7 +86,7 @@ az network public-ip create \
   --resource-group $RESOURCE_GROUP \
   --name poker-assistant-ip \
   --allocation-method Static \
-  --sku Basic \
+  --sku Standard \
   --output none
 
 echo ""
