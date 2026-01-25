@@ -90,7 +90,18 @@ az network public-ip create \
   --output none
 
 echo ""
-echo "🖥️  步骤 5/7: 创建 VM..."
+echo "🖥️  步骤 5/7: 创建网络接口..."
+az network nic create \
+  --resource-group $RESOURCE_GROUP \
+  --name poker-assistant-nic \
+  --vnet-name poker-assistant-vnet \
+  --subnet default \
+  --network-security-group poker-assistant-nsg \
+  --public-ip-address poker-assistant-ip \
+  --output none
+
+echo ""
+echo "🖥️  步骤 6/7: 创建 VM..."
 az vm create \
   --resource-group $RESOURCE_GROUP \
   --name $VM_NAME \
@@ -98,10 +109,7 @@ az vm create \
   --size $VM_SIZE \
   --admin-username azureuser \
   --generate-ssh-keys \
-  --public-ip-address poker-assistant-ip \
-  --vnet-name poker-assistant-vnet \
-  --subnet default \
-  --nsg poker-assistant-nsg \
+  --nics poker-assistant-nic \
   --storage-sku Standard_LRS \
   --output none
 

@@ -5,12 +5,9 @@
 from typing import Optional, Callable, Dict, Any, List
 from pypokerengine.api.game import setup_config, start_poker
 
-from poker_assistant.engine.human_player import HumanPlayer
 from poker_assistant.engine.ai_opponent import AIOpponentPlayer
 from poker_assistant.engine.bot_persona import get_random_persona
 from poker_assistant.engine.game_state import GameState
-from poker_assistant.cli.game_renderer import GameRenderer
-from poker_assistant.cli.input_handler import InputHandler
 from poker_assistant.utils.config import Config
 
 # AI 分析模块
@@ -47,8 +44,9 @@ class GameController:
             # 允许按 session 覆盖盲注/初始筹码等
             self.game_config.update(game_overrides)
         self.ai_config = config.get_ai_config()
-        self.renderer = GameRenderer()
-        self.input_handler = InputHandler(chat_callback=self._handle_chat)
+        # CLI 组件已移除（Web 版本不需要）
+        self.renderer = None
+        self.input_handler = None
         self.game_state = None
         self.human_player = None
         self.ai_players = []
@@ -93,41 +91,20 @@ class GameController:
                 self.strategy_advisor.set_opponent_modeler(self.opponent_modeler)
                 self.opponent_analyzer.set_opponent_modeler(self.opponent_modeler)
                 
-                self.renderer.render_info("✅ AI 分析功能已启用（含对手建模）")
+                if self.renderer:
+                    self.renderer.render_info("✅ AI 分析功能已启用（含对手建模）")
             except Exception as e:
                 self.ai_enabled = False
-                self.renderer.render_info(f"⚠️  AI 功能初始化失败: {e}")
+                if self.renderer:
+                    self.renderer.render_info(f"⚠️  AI 功能初始化失败: {e}")
         else:
-            self.renderer.render_info("ℹ️  AI 分析功能未启用（未配置 API Key）")
+            if self.renderer:
+                self.renderer.render_info("ℹ️  AI 分析功能未启用（未配置 API Key）")
     
     def start_game(self):
-        """开始游戏"""
-        # 显示欢迎界面
-        self.renderer.render_welcome()
-        self.renderer.wait_for_continue()
-        
-        # 初始化游戏
-        self._setup_game()
-        
-        # 配置 PyPokerEngine
-        poker_config = self._create_poker_config()
-        
-        # 开始游戏
-        try:
-            self.renderer.render_info("游戏即将开始...")
-            game_result = start_poker(poker_config, verbose=0)
-            
-            # 显示游戏结果
-            self.renderer.render_game_over(game_result)
-        
-        except KeyboardInterrupt:
-            self.renderer.render_info("\n游戏被中断")
-        
-        except Exception as e:
-            self.renderer.render_error(f"游戏出错: {e}")
-            if self.config.DEBUG:
-                import traceback
-                traceback.print_exc()
+        """开始游戏（CLI 模式，Web 版本不使用）"""
+        # CLI 模式已移除，此方法保留以兼容性
+        raise NotImplementedError("CLI mode has been removed. Use Web interface instead.")
     
     def _setup_game(self):
         """设置游戏"""
@@ -137,11 +114,9 @@ class GameController:
         # 创建游戏状态
         self.game_state = GameState(player_count, initial_stack)
         
-        # 创建人类玩家
-        self.human_player = HumanPlayer(
-            input_callback=self._get_human_action,
-            display_callback=self._handle_game_event
-        )
+        # 创建人类玩家（Web 模式下会被 AsyncHumanPlayer 替换）
+        # CLI 模式已移除，human_player 将在 Web 模式下被替换
+        self.human_player = None
         
         # 创建 AI 对手
         ai_difficulties = self._get_ai_difficulties(player_count - 1)
@@ -163,20 +138,23 @@ class GameController:
             small_blind_amount=self.game_config['small_blind_amount']
         )
         
-        # 注册人类玩家
-        config.register_player(name="你", algorithm=self.human_player)
+        # 注册人类玩家（Web 模式下会被 AsyncHumanPlayer 替换）
+        if self.human_player:
+            config.register_player(name="你", algorithm=self.human_player)
         
         # 注册 AI 玩家
-        self.renderer.render_info("\n🎲 对手入座情况：")
+        if self.renderer:
+            self.renderer.render_info("\n🎲 对手入座情况：")
         for idx, ai_player in enumerate(self.ai_players):
             ai_name = f"AI_{idx+1}"
             config.register_player(name=ai_name, algorithm=ai_player)
             
-            # 展示 AI 性格
-            if ai_player.use_ai:
-                self.renderer.render_info(f"🤖 {ai_name} [{ai_player.persona.name}]")
-            else:
-                self.renderer.render_info(f"🤖 {ai_name} [普通机器人]")
+            # 展示 AI 性格（仅 CLI 模式）
+            if self.renderer:
+                if ai_player.use_ai:
+                    self.renderer.render_info(f"🤖 {ai_name} [{ai_player.persona.name}]")
+                else:
+                    self.renderer.render_info(f"🤖 {ai_name} [普通机器人]")
         
         return config
     
@@ -221,24 +199,8 @@ class GameController:
         Returns:
             (action, amount) 元组
         """
-        # 渲染当前状态
-        self.renderer.render_table_state(round_state, hole_card)
-        
-        # AI 建议
-        if self.ai_enabled and self.ai_config.get('auto_show_advice', True):
-            try:
-                advice = self._get_ai_advice(valid_actions, hole_card, round_state)
-                self.renderer.render_ai_advice(advice)
-            except Exception as e:
-                if self.config.DEBUG:
-                    self.renderer.render_error(f"获取 AI 建议失败: {e}")
-        
-        # 获取用户输入
-        action, amount = self.input_handler.get_action(
-            valid_actions, hole_card, round_state
-        )
-        
-        return action, amount
+        # CLI 模式已移除，此方法不会被调用
+        raise NotImplementedError("CLI mode has been removed. Use AsyncHumanPlayer in Web mode.")
     
     def _handle_game_event(self, event_type: str, event_data: Dict[str, Any]):
         """
@@ -250,7 +212,8 @@ class GameController:
         """
         try:
             if event_type == "game_start":
-                self.renderer.render_game_start(event_data)
+                if self.renderer:
+                    self.renderer.render_game_start(event_data)
             
             elif event_type == "round_start":
                 round_count = event_data['round_count']
@@ -276,10 +239,13 @@ class GameController:
                 self.player_hole_cards.clear()
                 self.shared_hole_cards.clear()
                 
-                # 记录人类玩家的底牌
-                human_uuid = self.human_player.uuid
-                self.player_hole_cards[human_uuid] = hole_card
-                self.shared_hole_cards[human_uuid] = hole_card
+                # 记录人类玩家的底牌（Web 模式下使用 async_player）
+                # 在 Web 模式下，human_player 会被 AsyncHumanPlayer 替换
+                if self.human_player:
+                    human_uuid = self.human_player.uuid
+                    self.player_hole_cards[human_uuid] = hole_card
+                    self.shared_hole_cards[human_uuid] = hole_card
+                # 注意：Web 模式下，AsyncHumanPlayer 会在 receive_round_start 时自己记录底牌
                 
                 # Button 位置轮转（PyPokerEngine 不会自动轮转）
                 # 找出所有还有筹码的玩家（淘汰的玩家不参与轮转）
@@ -317,7 +283,8 @@ class GameController:
                 # 使用我们自己管理的dealer_btn（不使用PyPokerEngine的）
                 dealer_btn = self.current_dealer_btn
                 
-                self.renderer.render_round_start(round_count, hole_card, 
+                if self.renderer:
+                    self.renderer.render_round_start(round_count, hole_card,
                                                 seats, dealer_btn)
             
             elif event_type == "street_start":
@@ -329,7 +296,8 @@ class GameController:
                 # 记录日志：街道开始
                 self.game_logger.record_street_start(street, community_cards)
                 
-                self.renderer.render_street_start(street, community_cards, pot_size)
+                if self.renderer:
+                    self.renderer.render_street_start(street, community_cards, pot_size)
             
             elif event_type == "game_update":
                 action = event_data['action']
@@ -353,12 +321,13 @@ class GameController:
                     pot_size=round_state.get('pot', {}).get('main', {}).get('amount', 0)
                 )
                 
-                self.renderer.render_player_action(
-                    player_name,
-                    action['action'],
-                    action.get('amount', 0),
-                    is_human
-                )
+                if self.renderer:
+                    self.renderer.render_player_action(
+                        player_name,
+                        action['action'],
+                        action.get('amount', 0),
+                        is_human
+                    )
             
             elif event_type == "round_result":
                 winners = event_data['winners']
@@ -376,15 +345,17 @@ class GameController:
                     total_pot=round_state.get('pot', {}).get('main', {}).get('amount', 0)
                 )
                 
-                # 传递初始筹码和玩家底牌以用于展示
-                self.renderer.render_round_result(
-                    winners, hand_info, round_state, self.initial_stacks, final_hole_cards
-                )
-                self.renderer.wait_for_continue()
+                # 传递初始筹码和玩家底牌以用于展示（仅 CLI 模式）
+                if self.renderer:
+                    self.renderer.render_round_result(
+                        winners, hand_info, round_state, self.initial_stacks, final_hole_cards
+                    )
+                    self.renderer.wait_for_continue()
         
         except Exception as e:
             if self.config.DEBUG:
-                self.renderer.render_error(f"处理事件时出错: {e}")
+                if self.renderer:
+                    self.renderer.render_error(f"处理事件时出错: {e}")
                 import traceback
                 traceback.print_exc()
     
@@ -518,15 +489,25 @@ class GameController:
             位置名称（BTN, SB, BB, UTG, MP, CO, HJ等）
         """
         try:
-            # 找到玩家的座位索引
-            my_uuid = self.human_player.uuid
-            my_idx = None
-            seats = round_state.get('seats', [])
-            
-            for idx, seat in enumerate(seats):
-                if seat.get('uuid') == my_uuid:
-                    my_idx = idx
-                    break
+            # 找到玩家的座位索引（Web 模式下使用 async_player）
+            if not self.human_player:
+                # Web 模式下，human_player 可能为 None，尝试从 seats 中找到 "你"
+                seats = round_state.get('seats', [])
+                for idx, seat in enumerate(seats):
+                    if seat.get('name') == "你":
+                        my_idx = idx
+                        break
+                else:
+                    return "Unknown"
+            else:
+                my_uuid = self.human_player.uuid
+                my_idx = None
+                seats = round_state.get('seats', [])
+                
+                for idx, seat in enumerate(seats):
+                    if seat.get('uuid') == my_uuid:
+                        my_idx = idx
+                        break
             
             if my_idx is None:
                 return "Unknown"
