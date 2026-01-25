@@ -1,0 +1,12 @@
+{
+  "build": {
+    "command": "cd frontend && npm install && npm run build",
+    "cwd": "frontend",
+    "outputDirectory": "frontend/dist"
+  },
+  "env": {
+    "NODE_VERSION": "20",
+    "SKIP_PYTHON_BUILD": "true"
+  }
+}
+

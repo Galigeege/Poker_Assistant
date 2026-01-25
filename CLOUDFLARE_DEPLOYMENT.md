@@ -71,6 +71,9 @@ npm run build
    - **Build command**: `cd frontend && npm install && npm run build`
    - **Build output directory**: `frontend/dist`
    - **Root directory**: `/` (项目根目录)
+   - **Node version**: `20` (在环境变量中设置 `NODE_VERSION=20`)
+
+**重要：** 确保在环境变量中添加 `SKIP_PYTHON_BUILD=true`，防止 Cloudflare Pages 尝试构建后端 Python 代码。
 
 #### 1.3 配置环境变量
 

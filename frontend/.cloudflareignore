@@ -1,0 +1,23 @@
+# Cloudflare Pages 构建时忽略的文件
+# 只构建前端，不构建后端
+
+# 忽略后端代码
+../backend/
+../poker_assistant/
+../requirements.txt
+../*.py
+../*.sh
+../data/
+../logs/
+../.env
+../docker-compose*.yml
+../Dockerfile
+../deploy/
+../scripts/
+
+# 忽略其他非前端文件
+../*.md
+../LICENSE
+../.gitignore
+../.github/
+
