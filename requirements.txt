@@ -1,5 +1,6 @@
 # Core Dependencies
 PyPokerEngine==1.0.1
+treys>=0.1.0  # 扑克手牌评估库
 
 # Web Framework
 fastapi>=0.104.0
@@ -9,6 +10,7 @@ gunicorn>=21.0.0  # Production WSGI server for Azure App Service
 
 # LLM Service
 openai>=1.0.0  # Deepseek 使用兼容 OpenAI 的 API
+google-generativeai>=0.5.0  # Gemini API
 httpx>=0.24.0
 aiohttp>=3.8.0
 
