@@ -66,14 +66,17 @@ npm run build
 2. 进入 **Pages** → **Create a project**
 3. 选择 **Connect to Git**
 4. 选择你的 GitHub 仓库：`Galigeege/Poker_Assistant`
-5. 配置构建设置：
+5. **选择分支**：选择 `main` 分支（或 `dev-web-backend`，根据你的需求）
+6. 配置构建设置：
    - **Framework preset**: Vite
    - **Build command**: `cd frontend && npm install && npm run build`
    - **Build output directory**: `frontend/dist`
    - **Root directory**: `/` (项目根目录)
    - **Node version**: `20` (在环境变量中设置 `NODE_VERSION=20`)
 
-**重要：** 确保在环境变量中添加 `SKIP_PYTHON_BUILD=true`，防止 Cloudflare Pages 尝试构建后端 Python 代码。
+**重要：** 
+- 确保在环境变量中添加 `SKIP_PYTHON_BUILD=true`，防止 Cloudflare Pages 尝试构建后端 Python 代码
+- 如果使用 `main` 分支，确保 `main` 分支已包含最新的前端代码和修复
 
 #### 1.3 配置环境变量
 
