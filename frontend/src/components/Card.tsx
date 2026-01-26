@@ -44,7 +44,6 @@ const Card: React.FC<CardProps> = ({ card, hidden = false, className = '', size 
         'H': '♥', 'D': '♦', 'S': '♠', 'C': '♣'
       };
       displaySuit = suitMap[suitChar] || '?';
-      suitIcon = suitChar;
       isRed = suitChar === 'H' || suitChar === 'D';
     } else if (card && typeof card === 'object') {
       const suit = (card as { suit?: string; s?: string }).suit || (card as { s?: string }).s || '';
@@ -56,7 +55,6 @@ const Card: React.FC<CardProps> = ({ card, hidden = false, className = '', size 
           'H': '♥', 'D': '♦', 'S': '♠', 'C': '♣'
         };
         displaySuit = suitMap[suitUpper] || '?';
-        suitIcon = suitUpper;
         isRed = suitUpper === 'H' || suitUpper === 'D';
       }
     }
