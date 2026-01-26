@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, XCircle, Brain, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, CheckCircle, XCircle, Brain, Loader2, Trophy, Clock, Coins, User } from 'lucide-react';
 import Card from '../components/Card';
 import { useGameStore } from '../store/useGameStore';
 import type { StreetReviewData, ReviewAnalysis } from '../types';
@@ -265,67 +266,115 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white">
+    <div className="min-h-screen bg-[var(--color-bg-deep)] text-[var(--color-text-primary)]">
+      {/* Background */}
+      <div className="fixed inset-0 bg-gradient-radial opacity-40 pointer-events-none" />
+      
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-900/50 to-indigo-900/50 border-b border-gray-700 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-2xl font-bold">对局详情</h1>
-          <span className="text-sm text-gray-400">
-            {rounds.length} 局
-          </span>
+      <motion.div 
+        className="relative z-10 border-b border-[var(--color-border)] bg-[var(--color-bg-base)]/80 backdrop-blur-sm"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={onBack}
+                className="p-2 rounded-xl hover:bg-[var(--color-bg-hover)] transition-colors"
+                aria-label="返回"
+              >
+                <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
+              </button>
+              <div>
+                <h1 className="font-display text-2xl font-bold text-gold-gradient">对局详情</h1>
+                <p className="text-xs text-[var(--color-text-muted)]">{rounds.length} 局对战记录</p>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      </motion.div>
 
-      <div className="max-w-7xl mx-auto p-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-            <span className="ml-3 text-gray-400">加载数据中...</span>
+      <div className="relative z-10 max-w-7xl mx-auto p-6">
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div 
+              className="flex items-center justify-center py-16"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative">
+                  <div className="w-12 h-12 border-2 border-[var(--color-gold-500)]/30 rounded-full" />
+                  <div className="absolute inset-0 w-12 h-12 border-2 border-[var(--color-gold-500)] border-t-transparent rounded-full animate-spin" />
+                </div>
+                <span className="text-[var(--color-text-muted)]">加载数据中…</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        {error && rounds.length === 0 && !isLoading && (
+          <motion.div 
+            className="premium-card p-4 border-[var(--color-crimson-600)]/30 flex items-start gap-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <XCircle className="w-5 h-5 text-[var(--color-crimson-400)] shrink-0 mt-0.5" />
+            <div>
+              <div className="text-[var(--color-crimson-400)] font-semibold text-sm mb-1">加载失败</div>
+              <div className="text-[var(--color-text-muted)] text-xs">{error}。已切换到本地数据模式。</div>
+            </div>
+          </motion.div>
+        )}
+        
+        {rounds.length === 0 && !isLoading && !error && (
+          <div className="text-center py-16 text-[var(--color-text-dim)]">
+            <div className="p-4 rounded-full bg-[var(--color-bg-base)] inline-block mb-4">
+              <Trophy className="w-10 h-10 opacity-30" />
+            </div>
+            <p className="text-sm">未找到对局数据</p>
           </div>
-        ) : error && rounds.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p className="text-red-400 mb-2">加载失败: {error}</p>
-            <p className="text-sm text-gray-600">已切换到本地数据模式</p>
-          </div>
-        ) : rounds.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            <p>未找到对局数据</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        )}
+        
+        {!isLoading && rounds.length > 0 && (
+          <motion.div 
+            className="grid grid-cols-1 lg:grid-cols-4 gap-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
             {/* Round List */}
             <div className="lg:col-span-1">
-              <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-                <h2 className="text-lg font-semibold mb-4">对局列表</h2>
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+              <div className="premium-card p-4">
+                <h2 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-4">对局列表</h2>
+                <div className="space-y-2 max-h-[600px] overflow-y-auto scrollbar-thin">
                   {rounds.map((round, idx) => (
-                    <button
+                    <motion.button
                       key={round.id}
                       onClick={() => setSelectedRoundIndex(idx)}
-                      className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      className={`w-full text-left p-3 rounded-xl border transition-all duration-200 ${
                         selectedRoundIndex === idx
-                          ? 'bg-indigo-900/50 border-indigo-500/50'
-                          : 'bg-gray-700/30 border-gray-600/30 hover:bg-gray-700/50'
+                          ? 'bg-gradient-to-r from-[var(--color-gold-600)]/20 to-transparent border-[var(--color-gold-600)]/40'
+                          : 'bg-[var(--color-bg-elevated)] border-[var(--color-border)] hover:border-[var(--color-border-hover)] hover:bg-[var(--color-bg-hover)]'
                       }`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
                     >
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-medium">第 {idx + 1} 局</span>
-                        <span className={`text-xs font-semibold ${
-                          round.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
+                        <span className="text-sm font-medium text-[var(--color-text-primary)]">第 {idx + 1} 局</span>
+                        <span className={`text-xs font-bold font-mono ${
+                          round.profit >= 0 ? 'text-[var(--color-emerald-400)]' : 'text-[var(--color-crimson-400)]'
                         }`}>
                           {round.profit >= 0 ? '+' : ''}${round.profit.toFixed(2)}
                         </span>
                       </div>
-                      <div className="text-xs text-gray-400">
+                      <div className="text-xs text-[var(--color-text-dim)]">
                         {new Date(round.timestamp).toLocaleTimeString('zh-CN')}
                       </div>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </div>
@@ -336,57 +385,79 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
               {selectedRound ? (
                 <div className="space-y-6">
                   {/* Round Summary */}
-                  <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                    <div className="flex items-center justify-between mb-4">
-                      <h2 className="text-xl font-semibold">
+                  <motion.div 
+                    className="premium-card p-6"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    key={selectedRoundIndex}
+                  >
+                    <div className="flex items-center justify-between mb-6">
+                      <h2 className="font-display text-xl font-semibold text-[var(--color-text-primary)]">
                         第 {selectedRoundIndex! + 1} 局详情
                       </h2>
-                      <div className={`px-4 py-2 rounded-lg font-semibold ${
+                      <div className={`px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 ${
                         selectedRound.isWin
-                          ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-red-900/50 text-red-400 border border-red-500/30'
+                          ? 'bg-[var(--color-emerald-600)]/20 text-[var(--color-emerald-400)] border border-[var(--color-emerald-600)]/30'
+                          : 'bg-[var(--color-crimson-600)]/20 text-[var(--color-crimson-400)] border border-[var(--color-crimson-600)]/30'
                       }`}>
+                        {selectedRound.isWin ? <Trophy className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                         {selectedRound.isWin ? '胜利' : '失败'}
                       </div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <div className="text-sm text-gray-400">盈利</div>
-                        <div className={`text-lg font-bold ${
-                          selectedRound.profit >= 0 ? 'text-emerald-400' : 'text-red-400'
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
+                        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] mb-2">
+                          <Coins className="w-3.5 h-3.5" />
+                          盈利
+                        </div>
+                        <div className={`text-xl font-bold font-mono ${
+                          selectedRound.profit >= 0 ? 'text-[var(--color-emerald-400)]' : 'text-[var(--color-crimson-400)]'
                         }`}>
                           {selectedRound.profit >= 0 ? '+' : ''}${selectedRound.profit.toFixed(2)}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-sm text-gray-400">底池</div>
-                        <div className="text-lg font-bold text-yellow-400">
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
+                        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] mb-2">
+                          <Trophy className="w-3.5 h-3.5" />
+                          底池
+                        </div>
+                        <div className="text-xl font-bold font-mono text-[var(--color-gold-400)]">
                           ${selectedRound.pot.toFixed(2)}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-sm text-gray-400">时间</div>
-                        <div className="text-lg font-bold text-gray-300">
+                      <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
+                        <div className="flex items-center gap-2 text-xs text-[var(--color-text-muted)] mb-2">
+                          <Clock className="w-3.5 h-3.5" />
+                          时间
+                        </div>
+                        <div className="text-sm font-medium text-[var(--color-text-secondary)]">
                           {new Date(selectedRound.timestamp).toLocaleString('zh-CN')}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
 
-                  {/* Hero Hole Cards - Always show this section */}
-                  <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                    <h3 className="text-lg font-semibold mb-4">手牌</h3>
-                    <div className="flex gap-4 flex-wrap">
+                  {/* Hero Hole Cards */}
+                  <motion.div 
+                    className="premium-card p-6"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <div className="flex items-center gap-2 mb-4">
+                      <User className="w-5 h-5 text-[var(--color-gold-500)]" />
+                      <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">手牌</h3>
+                    </div>
+                    <div className="flex gap-6 flex-wrap">
                       {(() => {
-                        // Always show hero's cards section
                         const heroUuid = selectedRound.roundState?.seats?.find((s: any) => s.name === '你')?.uuid;
                         const heroCards = heroUuid && selectedRound.playerHoleCards?.[heroUuid];
                         
                         return (
                           <>
-                            {/* Hero's cards - always show, even if empty */}
-                            <div className="flex flex-col items-center gap-2">
-                              <div className="text-sm text-yellow-400 font-semibold">你</div>
+                            {/* Hero's cards */}
+                            <div className="flex flex-col items-center gap-3 p-4 bg-gradient-to-br from-[var(--color-gold-600)]/10 to-transparent rounded-xl border border-[var(--color-gold-600)]/20">
+                              <div className="text-sm text-[var(--color-gold-400)] font-semibold">你</div>
                               {heroCards && heroCards.length > 0 ? (
                                 <div className="flex gap-2">
                                   {heroCards.map((card: string, i: number) => (
@@ -394,24 +465,23 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                                   ))}
                                 </div>
                               ) : (
-                                <div className="text-xs text-gray-500 italic">手牌信息未记录</div>
+                                <div className="text-xs text-[var(--color-text-dim)] italic">手牌信息未记录</div>
                               )}
                             </div>
                             
-                            {/* Show other players' cards (showdown only) */}
+                            {/* Other players' cards */}
                             {selectedRound.playerHoleCards && Object.entries(selectedRound.playerHoleCards)
                               .filter(([uuid]) => uuid !== heroUuid)
                               .map(([uuid, cards]) => {
-                                // 优先从 hand_info 中查找玩家名称，然后从 seats 查找
                                 const handInfo = selectedRound.handInfo?.find((h: any) => h.uuid === uuid);
                                 const playerName = handInfo?.name || handInfo?.player_name || 
                                   selectedRound.roundState?.seats?.find((s: any) => s.uuid === uuid)?.name || 
                                   'Unknown';
                                 return (
-                                  <div key={uuid} className="flex flex-col items-center gap-2">
-                                    <div className="text-sm text-gray-400">
+                                  <div key={uuid} className="flex flex-col items-center gap-3 p-4 bg-[var(--color-bg-elevated)] rounded-xl border border-[var(--color-border)]">
+                                    <div className="text-sm text-[var(--color-text-secondary)]">
                                       {playerName}
-                                      <span className="text-xs text-gray-500 ml-1">(摊牌)</span>
+                                      <span className="text-xs text-[var(--color-text-dim)] ml-1">(摊牌)</span>
                                     </div>
                                     <div className="flex gap-2">
                                       {cards && cards.length > 0 ? (
@@ -419,7 +489,7 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                                           <Card key={i} card={card} size="md" />
                                         ))
                                       ) : (
-                                        <span className="text-xs text-gray-500">手牌未记录</span>
+                                        <span className="text-xs text-[var(--color-text-dim)]">手牌未记录</span>
                                       )}
                                     </div>
                                   </div>
@@ -429,17 +499,22 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                         );
                       })()}
                     </div>
-                  </div>
+                  </motion.div>
 
                   {/* Action History by Street */}
                   {selectedRound.streetHistory && selectedRound.streetHistory.length > 0 && (
-                    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                      <h3 className="text-lg font-semibold mb-4">行动历史</h3>
+                    <motion.div 
+                      className="premium-card p-6"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-4">行动历史</h3>
                       <div className="space-y-4">
                         {selectedRound.streetHistory.map((streetData: any, idx: number) => (
-                          <div key={idx} className="border-l-2 border-gray-600 pl-4">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-sm font-semibold text-gray-300">
+                          <div key={idx} className="border-l-2 border-[var(--color-gold-600)]/40 pl-4">
+                            <div className="flex items-center gap-3 mb-3">
+                              <span className="text-sm font-semibold text-[var(--color-gold-400)]">
                                 {streetNamesCN[streetData.street] || streetData.street}
                               </span>
                               {streetData.community_cards && streetData.community_cards.length > 0 && (
@@ -451,36 +526,48 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                               )}
                             </div>
                             {streetData.actions && streetData.actions.length > 0 ? (
-                              <div className="space-y-1 text-sm text-gray-400">
+                              <div className="space-y-1.5 text-sm">
                                 {streetData.actions.map((action: any, i: number) => {
                                   const actionText = action.action === 'call' && action.amount === 0 
                                     ? 'CHECK' 
                                     : action.action.toUpperCase();
                                   const amountText = action.amount > 0 ? ` $${action.amount}` : '';
+                                  const isHero = action.player === '你';
                                   return (
-                                    <div key={i} className="flex items-center gap-2">
-                                      <span className="text-gray-500 w-24">{action.player}:</span>
-                                      <span className="text-gray-300">{actionText}{amountText}</span>
+                                    <div key={i} className={`flex items-center gap-2 py-1 px-2 rounded ${isHero ? 'bg-[var(--color-gold-600)]/10' : ''}`}>
+                                      <span className={`w-24 ${isHero ? 'text-[var(--color-gold-400)] font-medium' : 'text-[var(--color-text-dim)]'}`}>
+                                        {action.player}:
+                                      </span>
+                                      <span className={`font-mono ${isHero ? 'text-[var(--color-gold-300)]' : 'text-[var(--color-text-secondary)]'}`}>
+                                        {actionText}{amountText}
+                                      </span>
                                     </div>
                                   );
                                 })}
                               </div>
                             ) : (
-                              <div className="text-sm text-gray-500 italic">无行动记录</div>
+                              <div className="text-sm text-[var(--color-text-dim)] italic">无行动记录</div>
                             )}
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </motion.div>
                   )}
 
                   {/* Showdown Results */}
                   {selectedRound.handInfo && selectedRound.handInfo.length > 0 && (
-                    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                      <h3 className="text-lg font-semibold mb-4">摊牌结果</h3>
+                    <motion.div 
+                      className="premium-card p-6"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
+                      <div className="flex items-center gap-2 mb-4">
+                        <Trophy className="w-5 h-5 text-[var(--color-gold-500)]" />
+                        <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">摊牌结果</h3>
+                      </div>
                       <div className="space-y-2">
                         {selectedRound.handInfo.map((hand: any, idx: number) => {
-                          // 优先使用 hand.name 或 hand.player_name，然后从 seats 查找，最后使用 'Unknown'
                           const playerName = hand.name || hand.player_name || 
                             selectedRound.roundState?.seats?.find((s: any) => s.uuid === hand.uuid)?.name || 
                             'Unknown';
@@ -491,43 +578,51 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                           return (
                             <div 
                               key={idx} 
-                              className={`flex items-center justify-between p-2 rounded ${
-                                isWinner ? 'bg-emerald-900/30 border border-emerald-500/30' : 'bg-gray-700/30'
+                              className={`flex items-center justify-between p-3 rounded-xl transition-colors ${
+                                isWinner 
+                                  ? 'bg-[var(--color-emerald-600)]/15 border border-[var(--color-emerald-600)]/30' 
+                                  : 'bg-[var(--color-bg-elevated)] border border-[var(--color-border)]'
                               }`}
                             >
-                              <span className={`text-sm ${isWinner ? 'text-emerald-400 font-semibold' : 'text-gray-300'}`}>
+                              <span className={`text-sm ${isWinner ? 'text-[var(--color-emerald-400)] font-semibold' : 'text-[var(--color-text-secondary)]'}`}>
                                 {playerName}
                                 {isWinner && <span className="ml-2 text-xs">🏆 获胜</span>}
                               </span>
-                              <span className="text-sm text-gray-400">{handStrength}</span>
+                              <span className="text-sm text-[var(--color-text-muted)] font-mono">{handStrength}</span>
                             </div>
                           );
                         })}
                       </div>
-                    </div>
+                    </motion.div>
                   )}
 
                   {/* Review Analysis */}
                   {reviewAnalysis && reviewAnalysis.streets && reviewAnalysis.streets.length > 0 ? (
-                    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                      <h3 className="text-lg font-semibold mb-4">AI 复盘分析</h3>
+                    <motion.div 
+                      className="premium-card p-6"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <div className="flex items-center gap-2 mb-6">
+                        <Brain className="w-5 h-5 text-[var(--color-gold-500)]" />
+                        <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">AI 复盘分析</h3>
+                      </div>
                       <div className="space-y-6">
                         {reviewAnalysis.streets.map((street: StreetReviewData, idx: number) => (
                           <div
                             key={idx}
-                            className="bg-gradient-to-br from-slate-800/50 to-slate-900/70 rounded-xl p-5 border border-slate-600/30"
+                            className="bg-[var(--color-bg-elevated)] rounded-xl p-5 border border-[var(--color-border)]"
                           >
                             {/* Street Header */}
-                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-700/50">
-                              <div className="flex items-center gap-3">
-                                <span className="text-white font-bold text-xl">
-                                  {streetNamesCN[street.street] || street.street}
-                                </span>
-                              </div>
+                            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--color-border)]">
+                              <span className="text-[var(--color-gold-400)] font-bold text-lg">
+                                {streetNamesCN[street.street] || street.street}
+                              </span>
                               <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium ${
                                 street.is_correct
-                                  ? 'bg-green-900/50 text-green-400 border border-green-500/30'
-                                  : 'bg-orange-900/50 text-orange-400 border border-orange-500/30'
+                                  ? 'bg-[var(--color-emerald-600)]/20 text-[var(--color-emerald-400)] border border-[var(--color-emerald-600)]/30'
+                                  : 'bg-[var(--color-gold-600)]/20 text-[var(--color-gold-400)] border border-[var(--color-gold-600)]/30'
                               }`}>
                                 {street.is_correct ? (
                                   <>
@@ -545,14 +640,13 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
 
                             {/* Community Cards */}
                             {(() => {
-                              // Use actual community cards from streetHistory if available
                               const actualStreetData = selectedRound.streetHistory?.find((s: any) => s.street === street.street);
                               const cardsToShow = actualStreetData?.community_cards || street.community_cards || [];
                               
                               if (cardsToShow.length > 0) {
                                 return (
                                   <div className="mb-4">
-                                    <div className="text-gray-500 text-xs mb-2">公共牌</div>
+                                    <div className="text-[var(--color-text-dim)] text-xs mb-2">公共牌</div>
                                     <div className="flex gap-2">
                                       {cardsToShow.map((card: string | { suit?: string; s?: string; rank?: string; r?: string }, i: number) => {
                                         let cardStr = '';
@@ -580,20 +674,20 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
 
                             {/* Action Comparison */}
                             <div className="grid grid-cols-2 gap-4 mb-4">
-                              <div className="bg-gray-800/70 rounded-lg p-4 border border-gray-600/50">
-                                <div className="text-gray-400 text-xs mb-2 flex items-center gap-1">
-                                  <span>👤</span> 你的行动
+                              <div className="bg-[var(--color-bg-base)] rounded-xl p-4 border border-[var(--color-border)]">
+                                <div className="text-[var(--color-text-muted)] text-xs mb-2 flex items-center gap-1">
+                                  <User className="w-3 h-3" /> 你的行动
                                 </div>
-                                <div className="text-white font-bold text-lg">
+                                <div className="text-[var(--color-text-primary)] font-bold text-lg font-mono">
                                   {street.hero_action || '未行动'}
                                 </div>
                               </div>
                               
-                              <div className="bg-indigo-900/40 rounded-lg p-4 border border-indigo-500/40">
-                                <div className="text-indigo-400 text-xs mb-2 flex items-center gap-1">
-                                  <span>🤖</span> AI 建议
+                              <div className="bg-gradient-to-br from-[var(--color-gold-600)]/10 to-transparent rounded-xl p-4 border border-[var(--color-gold-600)]/30">
+                                <div className="text-[var(--color-gold-400)] text-xs mb-2 flex items-center gap-1">
+                                  <Brain className="w-3 h-3" /> AI 建议
                                 </div>
-                                <div className="text-indigo-300 font-bold text-lg">
+                                <div className="text-[var(--color-gold-300)] font-bold text-lg font-mono">
                                   {street.ai_recommendation}
                                 </div>
                               </div>
@@ -602,8 +696,8 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                             {/* Opponent Actions */}
                             {street.opponent_actions && (
                               <div className="mb-4">
-                                <div className="text-gray-400 text-xs mb-2">对手行动</div>
-                                <div className="text-gray-300 text-sm bg-gray-800/50 p-3 rounded-lg">
+                                <div className="text-[var(--color-text-dim)] text-xs mb-2">对手行动</div>
+                                <div className="text-[var(--color-text-secondary)] text-sm bg-[var(--color-bg-base)] p-3 rounded-lg border border-[var(--color-border)]">
                                   {street.opponent_actions}
                                 </div>
                               </div>
@@ -611,17 +705,17 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
 
                             {/* Analysis */}
                             <div className="mb-4">
-                              <div className="text-gray-400 text-xs mb-2">分析理由</div>
-                              <div className="text-gray-300 text-sm leading-relaxed bg-gray-800/50 p-4 rounded-lg">
+                              <div className="text-[var(--color-text-dim)] text-xs mb-2">分析理由</div>
+                              <div className="text-[var(--color-text-secondary)] text-sm leading-relaxed bg-[var(--color-bg-base)] p-4 rounded-lg border border-[var(--color-border)]">
                                 {street.analysis}
                               </div>
                             </div>
 
                             {/* Conclusion */}
                             {street.conclusion && (
-                              <div className="pt-3 border-t border-gray-700/50">
-                                <div className="text-gray-400 text-xs mb-1">总结</div>
-                                <div className="text-gray-300 text-sm italic">
+                              <div className="pt-3 border-t border-[var(--color-border)]">
+                                <div className="text-[var(--color-text-dim)] text-xs mb-1">总结</div>
+                                <div className="text-[var(--color-text-muted)] text-sm italic">
                                   {street.conclusion}
                                 </div>
                               </div>
@@ -632,40 +726,56 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
 
                       {/* Overall Summary */}
                       {reviewAnalysis.overall_summary && (
-                        <div className="mt-6 pt-6 border-t border-gray-700/50">
-                          <h4 className="text-lg font-semibold mb-3">整体评价</h4>
-                          <div className="text-gray-300 leading-relaxed bg-gray-800/50 p-4 rounded-lg">
+                        <div className="mt-6 pt-6 border-t border-[var(--color-border)]">
+                          <h4 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-3">整体评价</h4>
+                          <div className="text-[var(--color-text-secondary)] leading-relaxed bg-[var(--color-bg-elevated)] p-4 rounded-xl border border-[var(--color-border)]">
                             {reviewAnalysis.overall_summary}
                           </div>
                         </div>
                       )}
-                    </div>
+                    </motion.div>
                   ) : isReviewLoading ? (
-                    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+                    <motion.div 
+                      className="premium-card p-8"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
                       <div className="text-center">
                         <div className="flex flex-col items-center gap-4 mb-6">
-                          <Loader2 className="w-12 h-12 text-indigo-400 animate-spin" />
+                          <div className="relative">
+                            <div className="w-16 h-16 border-2 border-[var(--color-gold-500)]/30 rounded-full" />
+                            <div className="absolute inset-0 w-16 h-16 border-2 border-[var(--color-gold-500)] border-t-transparent rounded-full animate-spin" />
+                            <Brain className="absolute inset-0 m-auto w-6 h-6 text-[var(--color-gold-400)]" />
+                          </div>
                           <div>
-                            <h3 className="text-lg font-semibold text-white mb-2">正在生成 AI 复盘分析</h3>
-                            <p className="text-sm text-gray-400">
-                              AI 正在深度分析本局游戏，预计需要 <span className="text-indigo-400 font-semibold">30 秒左右</span>
+                            <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)] mb-2">正在生成 AI 复盘分析</h3>
+                            <p className="text-sm text-[var(--color-text-muted)]">
+                              AI 正在深度分析本局游戏，预计需要 <span className="text-[var(--color-gold-400)] font-semibold">30 秒左右</span>
                             </p>
-                            <p className="text-xs text-gray-500 mt-2">
+                            <p className="text-xs text-[var(--color-text-dim)] mt-2">
                               请耐心等待，AI 将为您提供详细的复盘分析...
                             </p>
                           </div>
                         </div>
-                        <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
-                          <div className="h-full bg-indigo-500 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                        <div className="w-full bg-[var(--color-bg-base)] rounded-full h-2 overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-[var(--color-gold-600)] to-[var(--color-gold-400)] rounded-full animate-pulse" style={{ width: '60%' }}></div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   ) : (
-                    <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
-                      <div className="text-center text-gray-500 mb-4">
-                        <p>本局暂无 AI 复盘分析</p>
-                        <p className="text-sm mt-2">点击下方按钮生成 AI 复盘分析</p>
-                        <p className="text-xs text-gray-600 mt-1">预计需要 30 秒左右</p>
+                    <motion.div 
+                      className="premium-card p-6"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 }}
+                    >
+                      <div className="text-center mb-6">
+                        <div className="p-4 rounded-full bg-[var(--color-bg-base)] inline-block mb-4">
+                          <Brain className="w-8 h-8 text-[var(--color-text-dim)]" />
+                        </div>
+                        <p className="text-[var(--color-text-muted)]">本局暂无 AI 复盘分析</p>
+                        <p className="text-sm text-[var(--color-text-dim)] mt-2">点击下方按钮生成 AI 复盘分析</p>
+                        <p className="text-xs text-[var(--color-text-dim)] mt-1">预计需要 30 秒左右</p>
                       </div>
                       <button
                         onClick={async () => {
@@ -674,12 +784,10 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                             return;
                           }
                           
-                          // Ensure WebSocket is connected
                           let currentSocket = socket;
                           if (!currentSocket || currentSocket.readyState !== WebSocket.OPEN) {
                             console.log('[ReplayDetail] WebSocket not connected, connecting...');
                             connect();
-                            // Wait for connection (with timeout)
                             let attempts = 0;
                             while (attempts < 20 && (!currentSocket || currentSocket.readyState !== WebSocket.OPEN)) {
                               await new Promise(resolve => setTimeout(resolve, 100));
@@ -694,11 +802,9 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                             }
                           }
                           
-                          // Prepare review data
                           const heroUuid = selectedRound.roundState?.seats?.find((s: any) => s.name === '你')?.uuid;
                           const heroHoleCards = selectedRound.playerHoleCards?.[heroUuid] || [];
                           
-                          // Request review
                           const reviewData = {
                             hero_hole_cards: heroHoleCards,
                             community_cards: selectedRound.communityCards,
@@ -714,13 +820,11 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                             data: reviewData
                           }));
                           
-                          // Set loading state
                           useGameStore.setState({ isReviewLoading: true });
-                          // Clear local review to show loading state
                           setLocalReviewAnalysis(null);
                         }}
                         disabled={isReviewLoading || !selectedRound || (isConnecting && !isConnected)}
-                        className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg flex items-center justify-center gap-2 transition-colors"
+                        className="btn-gold w-full py-3 px-4 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {isReviewLoading ? (
                           <>
@@ -739,16 +843,19 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                           </>
                         )}
                       </button>
-                    </div>
+                    </motion.div>
                   )}
                 </div>
               ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <p>请选择一局查看详情</p>
+                <div className="text-center py-16 text-[var(--color-text-dim)]">
+                  <div className="p-4 rounded-full bg-[var(--color-bg-base)] inline-block mb-4">
+                    <Trophy className="w-10 h-10 opacity-30" />
+                  </div>
+                  <p className="text-sm">请选择一局查看详情</p>
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

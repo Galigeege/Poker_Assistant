@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LogIn, Loader2, AlertCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Loader2, AlertCircle, Spade, Diamond, Club, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 
 const Login: React.FC = () => {
@@ -13,7 +14,7 @@ const Login: React.FC = () => {
   const [localError, setLocalError] = useState<string | null>(null);
 
   // 获取重定向路径（如果有）
-  const from = (location.state as any)?.from?.pathname || '/';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,64 +28,144 @@ const Login: React.FC = () => {
 
     try {
       await login(username, password);
-      // 登录成功后重定向到原页面或首页
       navigate(from, { replace: true });
-    } catch (err: any) {
-      setLocalError(err.message || '登录失败');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '登录失败';
+      setLocalError(errorMessage);
     }
   };
 
   const displayError = localError || error;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-gray-800/50 rounded-xl p-8 border border-gray-700 shadow-2xl">
-          {/* Header */}
+    <div className="min-h-screen bg-[var(--color-bg-deep)] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-gradient-radial opacity-50" />
+      
+      {/* Floating Suit Icons */}
+      <motion.div 
+        className="absolute top-[10%] left-[15%] text-[var(--color-gold-500)] opacity-10"
+        animate={{ y: [-10, 10, -10], rotate: [0, 5, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Spade size={80} />
+      </motion.div>
+      <motion.div 
+        className="absolute top-[20%] right-[20%] text-[var(--color-crimson-500)] opacity-10"
+        animate={{ y: [10, -10, 10], rotate: [0, -5, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Heart size={60} />
+      </motion.div>
+      <motion.div 
+        className="absolute bottom-[25%] left-[10%] text-[var(--color-crimson-500)] opacity-10"
+        animate={{ y: [-8, 12, -8], rotate: [0, 8, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Diamond size={70} />
+      </motion.div>
+      <motion.div 
+        className="absolute bottom-[15%] right-[12%] text-[var(--color-gold-500)] opacity-10"
+        animate={{ y: [12, -8, 12], rotate: [0, -8, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <Club size={90} />
+      </motion.div>
+
+      {/* Decorative Lines */}
+      <div className="absolute top-0 left-1/4 w-px h-full bg-gradient-to-b from-transparent via-[var(--color-gold-500)]/10 to-transparent" />
+      <div className="absolute top-0 right-1/4 w-px h-full bg-gradient-to-b from-transparent via-[var(--color-gold-500)]/10 to-transparent" />
+
+      <motion.div 
+        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        {/* Logo Section */}
+        <motion.div 
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.5 }}
+        >
+          {/* Logo Icon */}
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--color-bg-elevated)] border border-[var(--color-border)] mb-6">
+            <div className="grid grid-cols-2 gap-1">
+              <Spade className="w-5 h-5 text-[var(--color-gold-500)]" />
+              <Heart className="w-5 h-5 text-[var(--color-crimson-500)]" />
+              <Diamond className="w-5 h-5 text-[var(--color-crimson-500)]" />
+              <Club className="w-5 h-5 text-[var(--color-gold-500)]" />
+            </div>
+          </div>
+          
+          <h1 className="font-display text-4xl font-bold text-gold-gradient mb-3 tracking-tight">
+            Poker Arena
+          </h1>
+          <p className="text-[var(--color-text-muted)] text-sm tracking-wide uppercase">
+            Premium AI Poker Experience
+          </p>
+        </motion.div>
+
+        {/* Login Card */}
+        <motion.div 
+          className="premium-card p-8"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          {/* Card Header */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-              POKER AI ARENA
-            </h1>
-            <p className="text-gray-400">登录您的账户</p>
+            <h2 className="font-display text-2xl font-semibold text-[var(--color-text-primary)] mb-2">
+              欢迎回来
+            </h2>
+            <div className="line-gold w-16 mx-auto" />
           </div>
 
           {/* Error Message */}
           {displayError && (
-            <div className="mb-6 p-4 bg-red-900/50 border border-red-500/50 rounded-lg flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-              <p className="text-red-200 text-sm">{displayError}</p>
-            </div>
+            <motion.div 
+              className="mb-6 p-4 bg-[var(--color-crimson-900)]/30 border border-[var(--color-crimson-600)]/30 rounded-[var(--radius-lg)] flex items-start gap-3"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <AlertCircle className="w-5 h-5 text-[var(--color-crimson-400)] shrink-0 mt-0.5" aria-hidden="true" />
+              <p className="text-[var(--color-crimson-300)] text-sm" role="alert">{displayError}</p>
+            </motion.div>
           )}
 
           {/* Login Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="username" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
                 用户名
               </label>
               <input
                 id="username"
+                name="username"
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-400"
-                placeholder="请输入用户名"
+                className="input-premium"
+                placeholder="请输入用户名…"
                 disabled={isLoading}
                 autoComplete="username"
+                spellCheck={false}
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300 mb-2">
+              <label htmlFor="password" className="block text-sm font-medium text-[var(--color-text-secondary)] mb-2">
                 密码
               </label>
               <input
                 id="password"
+                name="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-white placeholder-gray-400"
-                placeholder="请输入密码"
+                className="input-premium"
+                placeholder="请输入密码…"
                 disabled={isLoading}
                 autoComplete="current-password"
               />
@@ -93,39 +174,55 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-700 disabled:cursor-not-allowed rounded-lg flex items-center justify-center gap-2 transition-colors font-semibold"
+              className="btn-gold w-full py-4 text-lg flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>登录中...</span>
+                  <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                  <span>登录中…</span>
                 </>
               ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  <span>登录</span>
-                </>
+                <span>进入赌场</span>
               )}
             </button>
           </form>
 
-          {/* Register Link */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-400 text-sm">
-              还没有账户？{' '}
-              <button
-                onClick={() => navigate('/register')}
-                className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
-              >
-                立即注册
-              </button>
-            </p>
+          {/* Divider */}
+          <div className="my-8 flex items-center gap-4">
+            <div className="flex-1 line-gold" />
+            <span className="text-[var(--color-text-dim)] text-xs uppercase tracking-widest">或</span>
+            <div className="flex-1 line-gold" />
           </div>
-        </div>
-      </div>
+
+          {/* Register Link */}
+          <div className="text-center">
+            <p className="text-[var(--color-text-muted)] text-sm mb-3">
+              还没有账户？
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate('/register')}
+              className="btn-ghost w-full py-3 font-medium"
+            >
+              立即注册
+            </button>
+          </div>
+        </motion.div>
+
+        {/* Footer */}
+        <motion.div 
+          className="mt-8 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
+          <p className="text-[var(--color-text-dim)] text-xs">
+            Powered by <span className="text-[var(--color-gold-600)]">DeepSeek AI</span>
+          </p>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };
 
 export default Login;
-

@@ -1,7 +1,11 @@
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { RoundResult, Player, StreetReviewData, ReviewAnalysis } from '../types';
 import Card from './Card';
-import { Trophy, X, Brain, Loader2, CheckCircle, XCircle, Lightbulb, ArrowLeft } from 'lucide-react';
+import { 
+  Trophy, X, Brain, Loader2, CheckCircle, XCircle, 
+  Lightbulb, ArrowLeft, Crown, Sparkles 
+} from 'lucide-react';
 import { calculateHandRank, handRankNamesCN } from '../utils/handRank';
 import { useGameStore } from '../store/useGameStore';
 
@@ -15,7 +19,6 @@ interface RoundResultProps {
 const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, onClose, onNextRound }) => {
   const { winners, hand_info, round_state, player_hole_cards } = result;
   
-  // Review state from store
   const { 
     heroHoleCards,
     streetHistory,
@@ -25,18 +28,15 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
     clearReview 
   } = useGameStore();
   
-  // Local state for showing review modal
   const [showReviewModal, setShowReviewModal] = useState(false);
   
-  // Handle review button click
   const handleReviewClick = () => {
     setShowReviewModal(true);
-      if (!reviewAnalysis && !isReviewLoading) {
-        requestReview();
+    if (!reviewAnalysis && !isReviewLoading) {
+      requestReview();
     }
   };
   
-  // Street names in Chinese
   const streetNamesCN: Record<string, string> = {
     'preflop': '翻牌前',
     'flop': '翻牌圈',
@@ -44,11 +44,9 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
     'river': '河牌圈'
   };
   
-  // Determine if showdown occurred
   const activePlayers = round_state.seats.filter((s: Player) => s.state !== 'folded');
   const isShowdown = (hand_info && hand_info.length > 0) || activePlayers.length > 1;
   
-  // Calculate prize for each winner
   const calculatePrize = (uuid: string, currentStack: number): number => {
     if (initialStacks && initialStacks[uuid] !== undefined) {
       return currentStack - initialStacks[uuid];
@@ -56,13 +54,11 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
     return currentStack;
   };
   
-  // Get player name by UUID
   const getPlayerName = (uuid: string): string => {
     const seat = round_state.seats.find((s: Player) => s.uuid === uuid);
     return seat?.name || 'Unknown';
   };
   
-  // Get player hole cards
   const getPlayerCards = (uuid: string): string[] => {
     if (!player_hole_cards) return [];
     if (player_hole_cards[uuid]) return player_hole_cards[uuid];
@@ -78,7 +74,6 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
     return [];
   };
   
-  // Get hand rank display
   const getHandRankDisplay = (uuid: string): string => {
     const cards = getPlayerCards(uuid);
     const communityCards = round_state.community_card || [];
@@ -89,28 +84,26 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
   
   const winnerUuids = new Set(winners.map(w => w.uuid));
   
-  // Render structured review content
   const renderStructuredReview = (analysis: ReviewAnalysis) => {
     if (analysis.error) {
       return (
-        <div className="text-red-400 text-sm flex items-center gap-2">
-          <XCircle className="w-5 h-5" />
+        <div className="text-[var(--color-crimson-400)] text-sm flex items-center gap-2 p-4 bg-[var(--color-crimson-900)]/20 rounded-xl border border-[var(--color-crimson-600)]/30">
+          <XCircle className="w-5 h-5" aria-hidden="true" />
           <span>{analysis.error}</span>
         </div>
       );
     }
     
     if (!analysis.streets || analysis.streets.length === 0) {
-      // Fallback to content if available
-      if ((analysis as any).content) {
+      if ((analysis as { content?: string }).content) {
         return (
-          <div className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">
-            {(analysis as any).content}
+          <div className="text-[var(--color-text-secondary)] text-sm leading-relaxed whitespace-pre-wrap">
+            {(analysis as { content?: string }).content}
           </div>
         );
       }
       return (
-        <div className="text-gray-500 text-sm text-center py-4">
+        <div className="text-[var(--color-text-dim)] text-sm text-center py-8">
           暂无复盘数据
         </div>
       );
@@ -118,9 +111,9 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
     
     return (
       <div className="space-y-6">
-        {/* Hero Hole Cards Section */}
-        <div className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
-          <div className="text-gray-400 text-sm mb-2">🃏 你的手牌</div>
+        {/* Hero Hole Cards */}
+        <div className="bg-[var(--color-bg-elevated)] rounded-xl p-4 border border-[var(--color-border)]">
+          <div className="text-[var(--color-text-muted)] text-sm mb-3">你的手牌</div>
           <div className="flex gap-2">
             {heroHoleCards && heroHoleCards.map((card, i) => (
               <Card key={i} card={card} size="md" />
@@ -128,66 +121,60 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
           </div>
         </div>
         
-        {/* Street by Street Analysis */}
+        {/* Street Analysis */}
         {analysis.streets.map((street: StreetReviewData, idx: number) => (
-          <div 
-            key={idx} 
-            className="bg-gradient-to-br from-slate-800/50 to-slate-900/70 rounded-xl p-5 border border-slate-600/30 shadow-lg"
+          <motion.div 
+            key={idx}
+            className="premium-card p-5"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
           >
             {/* Street Header */}
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-700/50">
-              <div className="flex items-center gap-3">
-                <span className="text-white font-bold text-xl">
-                  {streetNamesCN[street.street] || street.street}
-                </span>
-              </div>
-              {/* Correct/Incorrect Badge */}
-              <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium ${
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--color-border)]">
+              <span className="font-display text-xl font-bold text-[var(--color-text-primary)]">
+                {streetNamesCN[street.street] || street.street}
+              </span>
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
                 street.is_correct 
-                  ? 'bg-green-900/50 text-green-400 border border-green-500/30' 
-                  : 'bg-orange-900/50 text-orange-400 border border-orange-500/30'
+                  ? 'bg-[var(--color-emerald-900)]/30 text-[var(--color-emerald-400)] border border-[var(--color-emerald-600)]/30' 
+                  : 'bg-[var(--color-gold-900)]/30 text-[var(--color-gold-400)] border border-[var(--color-gold-600)]/30'
               }`}>
                 {street.is_correct ? (
                   <>
-                    <CheckCircle className="w-4 h-4" />
+                    <CheckCircle className="w-4 h-4" aria-hidden="true" />
                     <span>正确</span>
                   </>
                 ) : (
                   <>
-                    <XCircle className="w-4 h-4" />
+                    <XCircle className="w-4 h-4" aria-hidden="true" />
                     <span>可改进</span>
                   </>
                 )}
               </div>
             </div>
             
-            {/* Community Cards for this street */}
+            {/* Community Cards */}
             {(() => {
-              // Use actual community cards from streetHistory if available, otherwise use LLM's data
               const actualStreetData = streetHistory.find(s => s.street === street.street);
               const cardsToShow = actualStreetData?.community_cards || street.community_cards || [];
               
               if (cardsToShow.length > 0) {
                 return (
                   <div className="mb-4">
-                    <div className="text-gray-500 text-xs mb-2">公共牌</div>
+                    <div className="text-[var(--color-text-dim)] text-xs mb-2">公共牌</div>
                     <div className="flex gap-2">
                       {cardsToShow.map((card, i) => {
-                        // Ensure card is a string in correct format
                         let cardStr = '';
                         if (typeof card === 'string') {
                           cardStr = card;
                         } else if (card && typeof card === 'object') {
-                          // Handle object format {suit: 'H', rank: '6'}
-                          const suit = (card as any).suit || (card as any).s || '';
-                          const rank = (card as any).rank || (card as any).r || '';
+                          const suit = (card as { suit?: string; s?: string }).suit || (card as { s?: string }).s || '';
+                          const rank = (card as { rank?: string; r?: string }).rank || (card as { r?: string }).r || '';
                           if (suit && rank) {
-                            // Convert to "6H" format (Rank + Suit)
                             cardStr = `${rank}${suit}`;
                           }
                         }
-                        
-                        // Only render if we have a valid card string
                         if (cardStr && cardStr.length >= 2) {
                           return <Card key={i} card={cardStr} size="sm" />;
                         }
@@ -202,88 +189,100 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
             
             {/* Action Comparison */}
             <div className="grid grid-cols-2 gap-4 mb-4">
-              {/* Player Action */}
-              <div className="bg-gray-800/70 rounded-lg p-4 border border-gray-600/50">
-                <div className="text-gray-400 text-xs mb-2 flex items-center gap-1">
-                  <span>👤</span> 你的行动
-                </div>
-                <div className="text-white font-bold text-lg">
+              <div className="bg-[var(--color-bg-base)] rounded-xl p-4 border border-[var(--color-border)]">
+                <div className="text-[var(--color-text-dim)] text-xs mb-2">你的行动</div>
+                <div className="text-[var(--color-text-primary)] font-bold text-lg">
                   {street.hero_action || '未行动'}
                 </div>
               </div>
-              
-              {/* AI Recommendation */}
-              <div className="bg-indigo-900/40 rounded-lg p-4 border border-indigo-500/40">
-                <div className="text-indigo-400 text-xs mb-2 flex items-center gap-1">
-                  <Brain className="w-3 h-3" /> AI 建议
+              <div className="bg-[var(--color-gold-900)]/20 rounded-xl p-4 border border-[var(--color-gold-600)]/30">
+                <div className="text-[var(--color-gold-400)] text-xs mb-2 flex items-center gap-1">
+                  <Brain className="w-3 h-3" aria-hidden="true" /> AI 建议
                 </div>
-                <div className="text-indigo-300 font-bold text-lg">
+                <div className="text-[var(--color-gold-300)] font-bold text-lg">
                   {street.ai_recommendation}
                 </div>
               </div>
             </div>
             
             {/* Opponent Actions */}
-            <div className="mb-4 bg-gray-900/50 rounded-lg p-3 border border-gray-700/50">
-              <div className="text-gray-500 text-xs mb-1">对手行动</div>
-              <div className="text-gray-300 text-sm">
+            <div className="mb-4 bg-[var(--color-bg-base)] rounded-xl p-3 border border-[var(--color-border)]">
+              <div className="text-[var(--color-text-dim)] text-xs mb-1">对手行动</div>
+              <div className="text-[var(--color-text-secondary)] text-sm">
                 {street.opponent_actions || '无对手行动'}
               </div>
             </div>
             
             {/* Analysis */}
-            <div className="bg-gradient-to-r from-cyan-900/30 to-blue-900/30 rounded-lg p-4 mb-4 border border-cyan-600/30">
-              <div className="text-cyan-400 text-xs mb-2 flex items-center gap-1">
-                <span>📊</span> 分析理由
-              </div>
-              <div className="text-gray-200 text-sm leading-relaxed">
+            <div className="bg-[var(--color-bg-base)] rounded-xl p-4 mb-4 border-l-2 border-[var(--color-gold-500)]">
+              <div className="text-[var(--color-gold-400)] text-xs mb-2">分析理由</div>
+              <div className="text-[var(--color-text-secondary)] text-sm leading-relaxed">
                 {street.analysis}
               </div>
             </div>
             
             {/* Conclusion */}
             {street.conclusion && (
-              <div className="flex items-start gap-3 bg-yellow-900/20 rounded-lg p-4 border border-yellow-500/30">
-                <Lightbulb className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
-                <span className="text-yellow-200 text-sm leading-relaxed">
+              <div className="flex items-start gap-3 bg-[var(--color-gold-900)]/10 rounded-xl p-4 border border-[var(--color-gold-600)]/20">
+                <Lightbulb className="w-5 h-5 text-[var(--color-gold-400)] mt-0.5 shrink-0" aria-hidden="true" />
+                <span className="text-[var(--color-gold-200)] text-sm leading-relaxed">
                   {street.conclusion}
                 </span>
               </div>
             )}
-          </div>
+          </motion.div>
         ))}
         
         {/* Overall Summary */}
         {analysis.overall_summary && (
-          <div className="bg-gradient-to-r from-purple-900/40 to-indigo-900/40 rounded-xl p-5 border border-purple-500/30">
-            <div className="text-purple-400 text-sm font-bold mb-3 flex items-center gap-2">
-              <span>📋</span> 整体评价与改进建议
+          <motion.div 
+            className="premium-card p-5 border-[var(--color-gold-600)]/30"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <div className="text-[var(--color-gold-400)] text-sm font-bold mb-3 flex items-center gap-2">
+              <Sparkles className="w-4 h-4" aria-hidden="true" />
+              整体评价与改进建议
             </div>
-            <div className="text-gray-200 text-sm leading-relaxed">
+            <div className="text-[var(--color-text-secondary)] text-sm leading-relaxed">
               {analysis.overall_summary}
             </div>
-          </div>
+          </motion.div>
         )}
       </div>
     );
   };
   
-  // Review Modal (separate window)
+  // Review Modal
   const ReviewModal = () => (
-    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-indigo-500/30 rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] flex flex-col">
+    <motion.div 
+      className="fixed inset-0 bg-black/90 backdrop-blur-md z-[60] flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.div 
+        className="premium-card max-w-3xl w-full max-h-[95vh] flex flex-col"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+      >
         {/* Header */}
-        <div className="flex-shrink-0 bg-gradient-to-r from-indigo-900/50 to-purple-900/50 border-b border-indigo-500/30 px-6 py-4 flex justify-between items-center rounded-t-2xl">
-          <h2 className="text-xl font-bold text-white flex items-center gap-3">
-            <Brain className="w-6 h-6 text-indigo-400" />
-            AI 复盘分析
-          </h2>
+        <div className="flex-shrink-0 border-b border-[var(--color-border)] px-6 py-4 flex justify-between items-center bg-[var(--color-bg-deep)]">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-[var(--color-gold-600)]/20">
+              <Brain className="w-5 h-5 text-[var(--color-gold-500)]" aria-hidden="true" />
+            </div>
+            <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
+              AI 复盘分析
+            </h2>
+          </div>
           <button
             onClick={() => setShowReviewModal(false)}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-800"
+            className="btn-ghost px-4 py-2 text-sm flex items-center gap-2"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span>返回结果</span>
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+            返回结果
           </button>
         </div>
         
@@ -291,198 +290,228 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
         <div className="flex-1 overflow-y-auto p-6">
           {isReviewLoading ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <Loader2 className="w-12 h-12 animate-spin text-indigo-400 mb-4" />
-              <span className="text-gray-400 text-lg">AI 正在分析本局游戏...</span>
-              <span className="text-gray-500 text-sm mt-2">请稍候，这可能需要几秒钟</span>
+              <div className="relative mb-4">
+                <div className="w-12 h-12 border-2 border-[var(--color-gold-500)]/30 rounded-full" />
+                <div className="absolute inset-0 w-12 h-12 border-2 border-[var(--color-gold-500)] border-t-transparent rounded-full animate-spin" />
+              </div>
+              <span className="text-[var(--color-text-secondary)]">AI 正在分析本局游戏…</span>
+              <span className="text-[var(--color-text-dim)] text-sm mt-2">请稍候，这可能需要几秒钟</span>
             </div>
           ) : reviewAnalysis ? (
             renderStructuredReview(reviewAnalysis)
           ) : (
             <div className="flex flex-col items-center justify-center py-16">
-              <Brain className="w-12 h-12 text-gray-600 mb-4" />
-              <span className="text-gray-500">正在准备复盘分析...</span>
+              <Brain className="w-12 h-12 text-[var(--color-text-dim)] mb-4 opacity-30" aria-hidden="true" />
+              <span className="text-[var(--color-text-dim)]">正在准备复盘分析…</span>
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
   
   return (
     <>
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
-        {/* Header */}
-        <div className="flex-shrink-0 bg-gray-900 border-b border-gray-700 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-yellow-400 flex items-center gap-2">
-            <Trophy className="w-6 h-6" />
-            本局结果
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Pot Size */}
-          <div className="text-center">
-            <div className="text-gray-400 text-sm mb-1">底池</div>
-            <div className="text-yellow-400 font-bold text-3xl font-mono">
-              ${round_state.pot?.main?.amount || 0}
+      <motion.div 
+        className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+      >
+        <motion.div 
+          className="premium-card max-w-4xl w-full max-h-[90vh] flex flex-col"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 25 }}
+        >
+          {/* Header */}
+          <div className="flex-shrink-0 border-b border-[var(--color-border)] px-6 py-4 flex justify-between items-center bg-[var(--color-bg-deep)]">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-[var(--color-gold-600)]/20">
+                <Trophy className="w-5 h-5 text-[var(--color-gold-500)]" aria-hidden="true" />
+              </div>
+              <h2 className="font-display text-2xl font-bold text-gold-gradient">
+                本局结果
+              </h2>
             </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
+              aria-label="关闭结果"
+            >
+              <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
+            </button>
           </div>
           
-          {/* Community Cards */}
-          {round_state.community_card && round_state.community_card.length > 0 && (
-            <div>
-              <div className="text-gray-400 text-sm mb-2">公共牌</div>
-              <div className="flex gap-2 justify-center">
-                {round_state.community_card.map((card, i) => (
-                  <Card key={i} card={card} />
-                ))}
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* Pot Size */}
+            <div className="text-center">
+              <div className="text-[var(--color-text-muted)] text-sm mb-1">底池</div>
+              <div className="text-[var(--color-gold-400)] font-bold text-4xl font-mono">
+                ${round_state.pot?.main?.amount || 0}
               </div>
             </div>
-          )}
-          
+            
+            {/* Community Cards */}
+            {round_state.community_card && round_state.community_card.length > 0 && (
+              <div>
+                <div className="text-[var(--color-text-muted)] text-sm mb-3 text-center">公共牌</div>
+                <div className="flex gap-3 justify-center">
+                  {round_state.community_card.map((card, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                    >
+                      <Card card={card} size="responsive" />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Showdown Hands */}
-          {isShowdown && player_hole_cards && Object.keys(player_hole_cards).length > 0 && (
-            <div>
-              <div className="text-gray-400 text-sm mb-3">🃏 摊牌阶段 - 玩家手牌</div>
-              <div className="space-y-3">
-                {round_state.seats
+            {isShowdown && player_hole_cards && Object.keys(player_hole_cards).length > 0 && (
+              <div>
+                <div className="text-[var(--color-text-muted)] text-sm mb-3">摊牌阶段</div>
+                <div className="space-y-3">
+                  {round_state.seats
                     .filter((seat: Player) => seat.state !== 'folded')
-                  .map((seat: Player) => {
-                    const isWinner = winnerUuids.has(seat.uuid);
-                    const cards = getPlayerCards(seat.uuid);
-                    if (cards.length === 0) return null;
-                    
-                    return (
-                      <div
-                        key={seat.uuid}
-                        className={`p-4 rounded-lg border ${
-                          isWinner
-                            ? 'bg-yellow-900/20 border-yellow-500/50'
-                            : 'bg-gray-800/50 border-gray-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`font-bold ${isWinner ? 'text-yellow-400' : 'text-gray-300'}`}>
-                              {seat.name}
-                            </span>
-                              {isWinner && <Trophy className="w-4 h-4 text-yellow-400" />}
-                          </div>
-                          <span className={`text-sm px-2 py-0.5 rounded ${isWinner ? 'bg-yellow-900/50 text-yellow-300' : 'bg-gray-700 text-gray-300'}`}>
+                    .map((seat: Player) => {
+                      const isWinner = winnerUuids.has(seat.uuid);
+                      const cards = getPlayerCards(seat.uuid);
+                      if (cards.length === 0) return null;
+                      
+                      return (
+                        <motion.div
+                          key={seat.uuid}
+                          className={`p-4 rounded-xl border ${
+                            isWinner
+                              ? 'bg-[var(--color-gold-900)]/20 border-[var(--color-gold-600)]/40'
+                              : 'bg-[var(--color-bg-elevated)] border-[var(--color-border)]'
+                          }`}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold ${isWinner ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-text-primary)]'}`}>
+                                {seat.name}
+                              </span>
+                              {isWinner && <Crown className="w-4 h-4 text-[var(--color-gold-400)]" aria-hidden="true" />}
+                            </div>
+                            <span className={`text-sm px-3 py-1 rounded-lg ${
+                              isWinner 
+                                ? 'bg-[var(--color-gold-900)]/30 text-[var(--color-gold-300)]' 
+                                : 'bg-[var(--color-bg-base)] text-[var(--color-text-secondary)]'
+                            }`}>
                               {getHandRankDisplay(seat.uuid)}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            {cards.map((card, i) => (
+                              <Card key={i} card={card} size="md" />
+                            ))}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+            
+            {/* No Showdown */}
+            {!isShowdown && (
+              <div className="text-center py-6 text-[var(--color-text-muted)]">
+                所有对手弃牌，无需摊牌
+              </div>
+            )}
+            
+            {/* Winners */}
+            <div>
+              <div className="text-[var(--color-text-muted)] text-sm mb-3">赢家</div>
+              <div className="space-y-3">
+                {winners.map((winner) => {
+                  const name = getPlayerName(winner.uuid);
+                  const prize = calculatePrize(winner.uuid, winner.stack);
+                  const isHero = name === '你';
+                  
+                  return (
+                    <motion.div
+                      key={winner.uuid}
+                      className={`p-5 rounded-xl ${
+                        isHero 
+                          ? 'bg-[var(--color-emerald-900)]/20 border border-[var(--color-emerald-600)]/40' 
+                          : 'bg-[var(--color-gold-900)]/20 border border-[var(--color-gold-600)]/40'
+                      }`}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Trophy className={`w-6 h-6 ${isHero ? 'text-[var(--color-emerald-400)]' : 'text-[var(--color-gold-400)]'}`} aria-hidden="true" />
+                          <span className={`font-bold text-xl ${isHero ? 'text-[var(--color-emerald-300)]' : 'text-[var(--color-gold-300)]'}`}>
+                            {name}
                           </span>
                         </div>
-                        <div className="flex gap-2">
-                          {cards.map((card, i) => (
-                            <Card key={i} card={card} />
-                          ))}
+                        <div className="text-right">
+                          <div className={`font-bold text-2xl font-mono ${isHero ? 'text-[var(--color-emerald-400)]' : 'text-[var(--color-gold-400)]'}`}>
+                            +${prize}
+                          </div>
+                          <div className="text-[var(--color-text-dim)] text-sm">
+                            总筹码: ${winner.stack}
+                          </div>
                         </div>
                       </div>
-                    );
-                  })}
+                    </motion.div>
+                  );
+                })}
               </div>
-            </div>
-          )}
-          
-            {/* No Showdown */}
-          {!isShowdown && (
-            <div className="text-center py-4">
-              <div className="text-gray-400 text-sm">🎯 所有对手弃牌，无需摊牌</div>
-            </div>
-          )}
-          
-          {/* Winners */}
-          <div>
-            <div className="text-gray-400 text-sm mb-3">🎉 赢家</div>
-            <div className="space-y-2">
-              {winners.map((winner) => {
-                const name = getPlayerName(winner.uuid);
-                const prize = calculatePrize(winner.uuid, winner.stack);
-                const isHero = name === '你';
-                
-                return (
-                  <div
-                    key={winner.uuid}
-                    className={`p-4 rounded-lg ${
-                      isHero ? 'bg-green-900/20 border border-green-500/50' : 'bg-yellow-900/20 border border-yellow-500/50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className={`font-bold text-lg ${isHero ? 'text-green-400' : 'text-yellow-400'}`}>
-                          {isHero ? '👤' : '🤖'} {name}
-                        </span>
-                        <Trophy className="w-5 h-5 text-yellow-400" />
-                      </div>
-                      <div className="text-right">
-                        <div className="text-yellow-400 font-bold text-xl font-mono">
-                          赢得 ${prize}
-                        </div>
-                        <div className="text-gray-400 text-sm">
-                          总筹码: ${winner.stack}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
             </div>
           </div>
           
-          {/* Bottom Action Buttons - Same Level */}
-          <div className="flex-shrink-0 bg-gray-900 border-t border-gray-700 px-6 py-4">
+          {/* Footer Actions */}
+          <div className="flex-shrink-0 border-t border-[var(--color-border)] px-6 py-4 bg-[var(--color-bg-deep)]">
             <div className="flex gap-4">
-              {/* AI Review Button */}
-            <button
-              onClick={handleReviewClick}
-              disabled={isReviewLoading}
-                className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-800 disabled:cursor-wait text-white font-medium transition-colors"
-            >
-              {isReviewLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>AI 分析中...</span>
-                </>
-              ) : (
-                <>
-                  <Brain className="w-5 h-5" />
-                  <span>AI 复盘分析</span>
-                </>
-              )}
-            </button>
-            
-              {/* Next Round Button */}
-          <button
-            onClick={() => {
-                  console.log('[RoundResult] Next round button clicked');
+              <button
+                onClick={handleReviewClick}
+                disabled={isReviewLoading}
+                className="flex-1 btn-ghost py-3.5 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isReviewLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+                    <span>AI 分析中…</span>
+                  </>
+                ) : (
+                  <>
+                    <Brain className="w-5 h-5" aria-hidden="true" />
+                    <span>AI 复盘分析</span>
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={() => {
                   clearReview();
-              onNextRound();
-                  // Close modal after a short delay to ensure state is updated
-                  setTimeout(() => {
-              onClose();
-                  }, 100);
-            }}
-                className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2"
-          >
-            <span>下一局</span>
-            <span className="text-sm opacity-75">(按 Enter)</span>
-          </button>
-        </div>
-      </div>
-    </div>
-      </div>
+                  onNextRound();
+                  setTimeout(() => onClose(), 100);
+                }}
+                className="flex-1 btn-gold py-3.5 flex items-center justify-center gap-2"
+              >
+                <span className="font-bold">下一局</span>
+                <span className="text-sm opacity-75">(Enter)</span>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
       
-      {/* Review Modal - Separate Window */}
-      {showReviewModal && <ReviewModal />}
+      <AnimatePresence>
+        {showReviewModal && <ReviewModal />}
+      </AnimatePresence>
     </>
   );
 };

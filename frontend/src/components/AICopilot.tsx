@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Brain, Sparkles, Target, ScrollText } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Brain, Sparkles, Target, ScrollText, TrendingUp, Zap } from 'lucide-react';
 import { useGameStore } from '../store/useGameStore';
 
 const AICopilot: React.FC = () => {
@@ -13,127 +14,232 @@ const AICopilot: React.FC = () => {
   }, [logs]);
 
   return (
-    <div className="fixed top-0 right-0 w-72 h-screen bg-gray-900 border-l border-gray-800 flex flex-col z-30">
+    <div className="h-screen bg-[var(--color-bg-base)] border-l border-[var(--color-border)] flex flex-col">
       
       {/* Header */}
-      <div className="p-4 border-b border-gray-800 flex items-center justify-between bg-gray-950">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-400" />
-          <h2 className="font-bold text-sm text-indigo-400">AI Copilot</h2>
+      <div className="p-4 border-b border-[var(--color-border)] bg-[var(--color-bg-deep)]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-[var(--color-gold-600)]/20">
+              <Sparkles className="w-4 h-4 text-[var(--color-gold-500)]" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="font-display font-semibold text-sm text-[var(--color-text-primary)]">
+                AI Copilot
+              </h2>
+              <p className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider">
+                Strategic Advisor
+              </p>
+            </div>
+          </div>
+          
+          {/* Toggle Switch */}
+          <button
+            onClick={() => setAiCopilotEnabled(!aiCopilotEnabled)}
+            className={`
+              relative inline-flex h-6 w-11 items-center rounded-full transition-colors
+              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-gold-500)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-deep)]
+              ${aiCopilotEnabled 
+                ? 'bg-[var(--color-gold-600)]' 
+                : 'bg-[var(--color-bg-hover)]'
+              }
+            `}
+            role="switch"
+            aria-checked={aiCopilotEnabled}
+            aria-label={aiCopilotEnabled ? '关闭 AI Copilot' : '开启 AI Copilot'}
+          >
+            <span
+              className={`
+                inline-block h-4 w-4 transform rounded-full bg-white shadow-md transition-transform
+                ${aiCopilotEnabled ? 'translate-x-6' : 'translate-x-1'}
+              `}
+            />
+          </button>
         </div>
-        {/* Toggle Switch */}
-        <button
-          onClick={() => setAiCopilotEnabled(!aiCopilotEnabled)}
-          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${
-            aiCopilotEnabled ? 'bg-indigo-600' : 'bg-gray-600'
-          }`}
-          aria-label={aiCopilotEnabled ? '关闭 AI Copilot' : '开启 AI Copilot'}
-        >
-          <span
-            className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-              aiCopilotEnabled ? 'translate-x-4.5' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
       </div>
 
       {/* Content - Scrollable */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         
-        {/* Strategic Analysis */}
-        <div className="bg-gray-800/50 rounded-xl p-3 border border-gray-700">
-          <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-2">Strategic Analysis</h3>
+        {/* Strategic Analysis Card */}
+        <div className="premium-card p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Brain className="w-4 h-4 text-[var(--color-gold-500)]" aria-hidden="true" />
+            <h3 className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">
+              Strategic Analysis
+            </h3>
+          </div>
           
-          {!aiCopilotEnabled ? (
-            <div className="text-center py-6 text-gray-500 text-xs flex flex-col items-center gap-2">
-              <Brain className="w-6 h-6 opacity-20" />
-              <span>AI Copilot 已关闭</span>
-              <span className="text-[10px] text-gray-600">开启开关以启用 AI 建议</span>
-            </div>
-          ) : isConnecting ? (
-             <div className="flex flex-col items-center py-4 gap-2">
-                <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-xs text-indigo-300 animate-pulse">AI 正在分析中...</span>
-             </div>
-          ) : advice ? (
-            <div className="space-y-3 animate-fade-in">
-              <div className="flex items-center justify-between">
-                <span className="text-xl font-bold text-white capitalize">
-                  {advice.recommended_action || advice.primary_strategy?.action || 'Thinking...'}
-                </span>
-                <div className="flex items-center gap-1 bg-indigo-900/40 px-1.5 py-0.5 rounded text-indigo-300 text-[10px] font-mono border border-indigo-500/30">
-                   <Target className="w-2.5 h-2.5" />
-                   {advice.win_probability || '??'}
+          <AnimatePresence mode="wait">
+            {!aiCopilotEnabled ? (
+              <motion.div 
+                key="disabled"
+                className="text-center py-8 text-[var(--color-text-dim)]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="p-4 rounded-full bg-[var(--color-bg-base)] inline-block mb-3">
+                  <Brain className="w-8 h-8 opacity-30" aria-hidden="true" />
                 </div>
-              </div>
-              <p className="text-xs text-gray-300 leading-relaxed whitespace-pre-wrap">
-                {advice.reasoning || advice.primary_strategy?.reason}
-              </p>
-              
-              {/* Primary Strategy Frequency */}
-              {advice.primary_strategy?.frequency && (
-                <div className="pt-2 border-t border-gray-700/50">
-                  <div className="text-[10px] text-gray-500 font-semibold mb-0.5">
-                    主选 ({advice.primary_strategy.frequency})
+                <p className="text-sm mb-1">AI Copilot 已关闭</p>
+                <p className="text-[10px] text-[var(--color-text-dim)]">开启开关以启用 AI 建议</p>
+              </motion.div>
+            ) : isConnecting ? (
+              <motion.div 
+                key="loading"
+                className="flex flex-col items-center py-8 gap-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="relative">
+                  <div className="w-10 h-10 border-2 border-[var(--color-gold-500)]/30 rounded-full" />
+                  <div className="absolute inset-0 w-10 h-10 border-2 border-[var(--color-gold-500)] border-t-transparent rounded-full animate-spin" />
+                </div>
+                <span className="text-xs text-[var(--color-gold-400)] animate-pulse">AI 正在分析中…</span>
+              </motion.div>
+            ) : advice ? (
+              <motion.div 
+                key="advice"
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                {/* Main Recommendation */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`
+                      p-2 rounded-xl
+                      ${(advice.recommended_action || advice.primary_strategy?.action)?.toLowerCase() === 'fold' 
+                        ? 'bg-[var(--color-crimson-900)]/30 text-[var(--color-crimson-400)]'
+                        : (advice.recommended_action || advice.primary_strategy?.action)?.toLowerCase() === 'raise'
+                        ? 'bg-[var(--color-gold-900)]/30 text-[var(--color-gold-400)]'
+                        : 'bg-[var(--color-emerald-900)]/30 text-[var(--color-emerald-400)]'
+                      }
+                    `}>
+                      <Zap className="w-5 h-5" aria-hidden="true" />
+                    </div>
+                    <span className="text-xl font-bold text-[var(--color-text-primary)] capitalize font-display">
+                      {advice.recommended_action || advice.primary_strategy?.action || '思考中…'}
+                    </span>
                   </div>
-                  <div className="text-xs text-indigo-300 font-medium uppercase">
-                    {advice.primary_strategy.action}
+                  
+                  {/* Win Probability */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-bg-base)] border border-[var(--color-border)]">
+                    <Target className="w-3 h-3 text-[var(--color-gold-500)]" aria-hidden="true" />
+                    <span className="text-xs font-mono text-[var(--color-gold-400)]">
+                      {advice.win_probability || '—'}
+                    </span>
                   </div>
                 </div>
-              )}
-              
-              {/* Alternative Strategy */}
-              {advice.alternative_strategy && (
-                <div className="pt-2 border-t border-gray-700/50">
-                  <div className="text-[10px] text-gray-500 font-semibold mb-0.5">
-                    备选 ({advice.alternative_strategy.frequency || '??'})
-                  </div>
-                  <div className="text-xs text-indigo-300 font-medium uppercase">
-                    {advice.alternative_strategy.action}
-                  </div>
+                
+                {/* Reasoning */}
+                <p className="text-xs text-[var(--color-text-secondary)] leading-relaxed whitespace-pre-wrap border-l-2 border-[var(--color-border)] pl-3">
+                  {advice.reasoning || advice.primary_strategy?.reason}
+                </p>
+                
+                {/* Strategy Details */}
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Primary Strategy */}
+                  {advice.primary_strategy?.frequency && (
+                    <div className="bg-[var(--color-bg-base)] rounded-xl p-3 border border-[var(--color-border)]">
+                      <div className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider mb-1">
+                        主选
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-[var(--color-emerald-400)] uppercase">
+                          {advice.primary_strategy.action}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--color-text-muted)]">
+                          {advice.primary_strategy.frequency}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Alternative Strategy */}
+                  {advice.alternative_strategy && (
+                    <div className="bg-[var(--color-bg-base)] rounded-xl p-3 border border-[var(--color-border)]">
+                      <div className="text-[9px] text-[var(--color-text-dim)] uppercase tracking-wider mb-1">
+                        备选
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-[var(--color-text-secondary)] uppercase">
+                          {advice.alternative_strategy.action}
+                        </span>
+                        <span className="text-[10px] font-mono text-[var(--color-text-muted)]">
+                          {advice.alternative_strategy.frequency || '—'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-500 text-xs flex flex-col items-center gap-2">
-              <Brain className="w-6 h-6 opacity-20" />
-              <span>等待行动...</span>
-            </div>
-          )}
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="waiting"
+                className="text-center py-8 text-[var(--color-text-dim)]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="p-4 rounded-full bg-[var(--color-bg-base)] inline-block mb-3">
+                  <TrendingUp className="w-8 h-8 opacity-30" aria-hidden="true" />
+                </div>
+                <p className="text-sm">等待行动…</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Game Logs */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2 mb-2">
-            <ScrollText className="w-3.5 h-3.5 text-gray-500" />
-            <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">游戏日志</h3>
-                  </div>
-          <div className="overflow-y-auto bg-gray-800/30 rounded-lg border border-gray-800 p-2 space-y-1" style={{ maxHeight: '350px' }}>
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex items-center gap-2 mb-3">
+            <ScrollText className="w-4 h-4 text-[var(--color-text-dim)]" aria-hidden="true" />
+            <h3 className="text-xs uppercase tracking-wider text-[var(--color-text-muted)] font-semibold">
+              游戏日志
+            </h3>
+          </div>
+          
+          <div 
+            className="flex-1 overflow-y-auto bg-[var(--color-bg-deep)] rounded-xl border border-[var(--color-border)] p-3 space-y-1"
+            style={{ maxHeight: '280px' }}
+            role="log"
+            aria-live="polite"
+            aria-label="游戏日志"
+          >
             {logs.length === 0 ? (
-              <div className="text-center py-4 text-gray-500 text-xs">
+              <div className="text-center py-6 text-[var(--color-text-dim)] text-xs">
                 暂无日志
-                    </div>
+              </div>
             ) : (
               <>
                 {logs.slice(-50).map((log, index) => (
-                  <div 
+                  <motion.div 
                     key={`${logs.length - 50 + index}-${log}`}
-                    className="text-[10px] text-gray-300 leading-relaxed px-1.5 py-0.5 rounded hover:bg-gray-700/30 transition-colors break-words"
+                    className="text-[10px] text-[var(--color-text-secondary)] leading-relaxed px-2 py-1 rounded hover:bg-[var(--color-bg-hover)] transition-colors break-words"
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
                   >
                     {log}
-               </div>
-             ))}
+                  </motion.div>
+                ))}
                 <div ref={logsEndRef} />
               </>
             )}
-           </div>
+          </div>
         </div>
-
       </div>
       
       {/* Footer */}
-      <div className="p-2 border-t border-gray-800 bg-gray-950 text-center">
-        <span className="text-[9px] text-gray-600">Powered by Deepseek V3</span>
+      <div className="p-3 border-t border-[var(--color-border)] bg-[var(--color-bg-deep)] text-center">
+        <span className="text-[9px] text-[var(--color-text-dim)] flex items-center justify-center gap-1.5">
+          <Sparkles className="w-3 h-3 text-[var(--color-gold-600)]" aria-hidden="true" />
+          Powered by DeepSeek V3
+        </span>
       </div>
     </div>
   );

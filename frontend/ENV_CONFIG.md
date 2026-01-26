@@ -14,13 +14,27 @@ VITE_WS_URL=
 
 ## 生产环境
 
+### Cloudflare Pages 部署
+
+在 Cloudflare Pages 项目设置中配置环境变量：
+
+```env
+# API 基础 URL（Cloudflare Tunnel 后端地址）
+VITE_API_BASE_URL=https://api.yourdomain.com
+
+# WebSocket URL（Cloudflare Tunnel WebSocket 地址）
+VITE_WS_URL=wss://ws.yourdomain.com
+```
+
+### 其他部署方式
+
 在 `frontend` 目录下创建 `.env.production` 文件：
 
 ```env
-# API 基础 URL（Azure App Service 地址）
+# API 基础 URL（后端服务地址）
 VITE_API_BASE_URL=https://your-api.azurewebsites.net
 
-# WebSocket URL（Azure App Service WebSocket 地址）
+# WebSocket URL（后端 WebSocket 地址）
 VITE_WS_URL=wss://your-api.azurewebsites.net
 ```
 

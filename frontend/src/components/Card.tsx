@@ -1,12 +1,13 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 
 export interface CardData {
-  suit: string; // 'h', 'd', 's', 'c' or full names
+  suit: string;
   rank: string;
 }
 
 interface CardProps {
-  card?: string | CardData; // Support both "Ah" string and object
+  card?: string | CardData;
   hidden?: boolean;
   className?: string;
   size?: 'sm' | 'md' | 'lg' | 'responsive' | 'responsive-sm' | 'responsive-lg';
@@ -17,123 +18,167 @@ const Card: React.FC<CardProps> = ({ card, hidden = false, className = '', size 
   let displayRank = '';
   let displaySuit = '';
   let isRed = false;
+  let suitIcon = '';
 
   if (!hidden && card) {
     if (typeof card === 'string') {
-      // Remove any whitespace or special characters
       const cleanCard = card.trim().replace(/[^A-Za-z0-9]/g, '');
-      
-      // "SA", "DK", "H10" format (Suit + Rank) from Backend
-      // Or "Ah", "Td" format (Rank + Suit) if mixed
       
       let rankChar = '';
       let suitChar = '';
 
-      // Simple heuristic: Check if first char is a Suit (S, H, D, C)
       if (['S', 'H', 'D', 'C', 's', 'h', 'd', 'c'].includes(cleanCard[0])) {
-          suitChar = cleanCard[0].toUpperCase();
-          rankChar = cleanCard.slice(1); // Handle '10' correctly
+        suitChar = cleanCard[0].toUpperCase();
+        rankChar = cleanCard.slice(1);
       } else {
-          // Assume Rank + Suit (old format)
-          // Handle 2-digit ranks like "10"
-          if (cleanCard.length >= 3 && cleanCard.slice(0, 2) === '10') {
-            rankChar = '10';
-            suitChar = cleanCard.slice(2).toUpperCase();
-          } else {
-            rankChar = cleanCard.slice(0, -1);
-            suitChar = cleanCard.slice(-1).toUpperCase();
-          }
+        if (cleanCard.length >= 3 && cleanCard.slice(0, 2) === '10') {
+          rankChar = '10';
+          suitChar = cleanCard.slice(2).toUpperCase();
+        } else {
+          rankChar = cleanCard.slice(0, -1);
+          suitChar = cleanCard.slice(-1).toUpperCase();
+        }
       }
 
       displayRank = rankChar.replace('T', '10');
-      displaySuit = {
-        'H': '♥', 'D': '♦', 'S': '♠', 'C': '♣',
-        'h': '♥', 'd': '♦', 's': '♠', 'c': '♣'
-      }[suitChar] || '?';
-      isRed = suitChar === 'H' || suitChar === 'D' || suitChar === 'h' || suitChar === 'd';
+      const suitMap: Record<string, string> = {
+        'H': '♥', 'D': '♦', 'S': '♠', 'C': '♣'
+      };
+      displaySuit = suitMap[suitChar] || '?';
+      suitIcon = suitChar;
+      isRed = suitChar === 'H' || suitChar === 'D';
     } else if (card && typeof card === 'object') {
-      // Handle object format {suit: 'H', rank: '6'} or {s: 'H', r: '6'}
-      const suit = (card as any).suit || (card as any).s || '';
-      const rank = (card as any).rank || (card as any).r || '';
+      const suit = (card as { suit?: string; s?: string }).suit || (card as { s?: string }).s || '';
+      const rank = (card as { rank?: string; r?: string }).rank || (card as { r?: string }).r || '';
       if (suit && rank) {
         const suitUpper = suit.toUpperCase();
         displayRank = rank.replace('T', '10');
         const suitMap: Record<string, string> = {
-          'H': '♥', 'D': '♦', 'S': '♠', 'C': '♣',
-          'h': '♥', 'd': '♦', 's': '♠', 'c': '♣'
+          'H': '♥', 'D': '♦', 'S': '♠', 'C': '♣'
         };
         displaySuit = suitMap[suitUpper] || '?';
+        suitIcon = suitUpper;
         isRed = suitUpper === 'H' || suitUpper === 'D';
       }
     }
   }
   
-  // Size classes - includes responsive options using clamp
-  const sizeClasses: Record<string, string> = {
-    sm: 'w-8 h-12 text-xs rounded-sm',
-    md: 'w-14 h-20 text-lg rounded',
-    lg: 'w-20 h-28 text-2xl rounded-md',
-    // Responsive sizes that scale with viewport
-    'responsive-sm': 'w-[clamp(22px,2.8vw,40px)] h-[clamp(33px,4.2vw,60px)] text-[clamp(8px,1vw,13px)] rounded-[clamp(2px,0.25vw,4px)]',
-    'responsive': 'w-[clamp(28px,3.5vw,52px)] h-[clamp(42px,5.25vw,78px)] text-[clamp(10px,1.2vw,16px)] rounded-[clamp(2px,0.3vw,5px)]',
-    'responsive-lg': 'w-[clamp(36px,4.5vw,72px)] h-[clamp(54px,6.75vw,108px)] text-[clamp(14px,1.6vw,24px)] rounded-[clamp(3px,0.4vw,6px)]',
+  // Size classes with premium styling
+  const sizeConfig: Record<string, { card: string; rank: string; suit: string; centerSuit: string; circle: string }> = {
+    sm: {
+      card: 'w-10 h-14',
+      rank: 'text-xs',
+      suit: 'text-[8px]',
+      centerSuit: 'text-lg',
+      circle: 'w-4 h-4',
+    },
+    md: {
+      card: 'w-14 h-20',
+      rank: 'text-base',
+      suit: 'text-[10px]',
+      centerSuit: 'text-2xl',
+      circle: 'w-6 h-6',
+    },
+    lg: {
+      card: 'w-20 h-28',
+      rank: 'text-xl',
+      suit: 'text-xs',
+      centerSuit: 'text-4xl',
+      circle: 'w-8 h-8',
+    },
+    'responsive-sm': {
+      card: 'w-[clamp(28px,3vw,44px)] h-[clamp(42px,4.5vw,66px)]',
+      rank: 'text-[clamp(9px,1vw,14px)]',
+      suit: 'text-[clamp(6px,0.7vw,10px)]',
+      centerSuit: 'text-[clamp(14px,1.8vw,24px)]',
+      circle: 'w-[clamp(12px,1.5vw,20px)] h-[clamp(12px,1.5vw,20px)]',
+    },
+    responsive: {
+      card: 'w-[clamp(36px,4vw,56px)] h-[clamp(54px,6vw,84px)]',
+      rank: 'text-[clamp(11px,1.2vw,18px)]',
+      suit: 'text-[clamp(7px,0.8vw,11px)]',
+      centerSuit: 'text-[clamp(18px,2.2vw,32px)]',
+      circle: 'w-[clamp(14px,1.8vw,24px)] h-[clamp(14px,1.8vw,24px)]',
+    },
+    'responsive-lg': {
+      card: 'w-[clamp(44px,5vw,72px)] h-[clamp(66px,7.5vw,108px)]',
+      rank: 'text-[clamp(14px,1.6vw,24px)]',
+      suit: 'text-[clamp(8px,1vw,14px)]',
+      centerSuit: 'text-[clamp(24px,3vw,44px)]',
+      circle: 'w-[clamp(18px,2.2vw,30px)] h-[clamp(18px,2.2vw,30px)]',
+    },
   };
 
-  // Center suit size classes
-  const centerSuitClasses: Record<string, string> = {
-    sm: 'text-xl',
-    md: 'text-2xl',
-    lg: 'text-4xl',
-    'responsive-sm': 'text-[clamp(14px,1.6vw,22px)]',
-    'responsive': 'text-[clamp(16px,2vw,30px)]',
-    'responsive-lg': 'text-[clamp(22px,2.8vw,42px)]',
-  };
+  const config = sizeConfig[size];
 
-  // Hidden card inner circle size
-  const hiddenCircleClasses: Record<string, string> = {
-    sm: 'w-4 h-4',
-    md: 'w-6 h-6',
-    lg: 'w-8 h-8',
-    'responsive-sm': 'w-[clamp(12px,1.4vw,18px)] h-[clamp(12px,1.4vw,18px)]',
-    'responsive': 'w-[clamp(14px,1.6vw,22px)] h-[clamp(14px,1.6vw,22px)]',
-    'responsive-lg': 'w-[clamp(18px,2.2vw,30px)] h-[clamp(18px,2.2vw,30px)]',
-  };
-
+  // Card back (hidden)
   if (hidden || !card) {
     return (
-      <div 
-        className={`${sizeClasses[size]} bg-blue-900 border-2 border-white/20 shadow-lg flex items-center justify-center ${className} relative overflow-hidden`}
+      <motion.div 
+        className={`${config.card} rounded-lg shadow-xl overflow-hidden select-none ${className}`}
+        whileHover={{ y: -2 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
       >
-        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')]"></div>
-        <div className="w-full h-full bg-gradient-to-br from-blue-800 to-blue-950 flex items-center justify-center">
-             <div className={`${hiddenCircleClasses[size]} rounded-full border-2 border-blue-400/30`}></div>
+        {/* Card back design - premium pattern */}
+        <div className="w-full h-full bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border-2 border-[#2a5a9e]/40 rounded-lg relative overflow-hidden">
+          {/* Pattern overlay */}
+          <div className="absolute inset-0 opacity-20">
+            <svg className="w-full h-full" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <pattern id="cardBack" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                  <circle cx="5" cy="5" r="1" fill="#d4af37" />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#cardBack)" />
+            </svg>
+          </div>
+          
+          {/* Center decoration */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className={`${config.circle} rounded-full border-2 border-[var(--color-gold-500)]/30 flex items-center justify-center`}>
+              <div className="w-1/2 h-1/2 rounded-full bg-[var(--color-gold-500)]/20" />
+            </div>
+          </div>
+          
+          {/* Edge highlight */}
+          <div className="absolute inset-1 rounded border border-[var(--color-gold-500)]/10" />
         </div>
-      </div>
+      </motion.div>
     );
   }
 
+  // Card front
+  const textColor = isRed ? 'text-[var(--color-crimson-500)]' : 'text-[#1a1a1a]';
+  
   return (
-    <div 
-      className={`${sizeClasses[size]} bg-white shadow-xl flex flex-col items-center justify-center p-[clamp(2px,0.25vw,4px)] select-none transform transition-transform hover:-translate-y-0.5 ${className}`}
+    <motion.div 
+      className={`${config.card} rounded-lg shadow-xl overflow-hidden select-none ${className}`}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
     >
-      {displayRank && displaySuit ? (
-        <>
-          <div className={`self-start leading-none font-bold font-mono ${isRed ? 'text-red-600' : 'text-gray-900'}`}>
-            {displayRank}
-            <div className="text-[0.6em]">{displaySuit}</div>
-          </div>
-          
-          <div className={`${centerSuitClasses[size]} ${isRed ? 'text-red-600' : 'text-gray-900'}`}>
-            {displaySuit}
-          </div>
-        </>
-      ) : (
-        // Fallback if parsing failed
-        <div className="flex items-center justify-center h-full text-xs text-gray-500">
-          {typeof card === 'string' ? card : 'ERR'}
+      <div className="w-full h-full bg-gradient-to-br from-[#fefefe] to-[#f0ece4] border border-[#d0c8b8]/60 rounded-lg relative p-1.5 flex flex-col">
+        
+        {/* Top left rank & suit */}
+        <div className={`flex flex-col items-start leading-none font-bold ${textColor}`}>
+          <span className={`${config.rank} font-display`}>{displayRank}</span>
+          <span className={config.suit}>{displaySuit}</span>
         </div>
-      )}
-    </div>
+        
+        {/* Center suit */}
+        <div className={`flex-1 flex items-center justify-center ${config.centerSuit} ${textColor}`}>
+          {displaySuit}
+        </div>
+        
+        {/* Bottom right rank & suit (rotated) */}
+        <div className={`flex flex-col items-end leading-none font-bold rotate-180 ${textColor}`}>
+          <span className={`${config.rank} font-display`}>{displayRank}</span>
+          <span className={config.suit}>{displaySuit}</span>
+        </div>
+        
+        {/* Subtle shine effect */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/40 via-transparent to-transparent rounded-lg pointer-events-none" />
+      </div>
+    </motion.div>
   );
 };
 
