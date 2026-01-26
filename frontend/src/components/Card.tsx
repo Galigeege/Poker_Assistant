@@ -18,7 +18,6 @@ const Card: React.FC<CardProps> = ({ card, hidden = false, className = '', size 
   let displayRank = '';
   let displaySuit = '';
   let isRed = false;
-  let suitIcon = '';
 
   if (!hidden && card) {
     if (typeof card === 'string') {

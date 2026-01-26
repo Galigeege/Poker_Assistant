@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, Trophy, TrendingUp, TrendingDown, Calendar, Play, 
-  BarChart3, AlertTriangle, Loader2, Spade, Heart
+  BarChart3, AlertTriangle, Spade, Heart
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -393,16 +393,13 @@ const Dashboard: React.FC<DashboardProps> = ({ onBack }) => {
                           boxShadow: '0 10px 40px rgba(0,0,0,0.5)'
                         }}
                         labelStyle={{ color: 'var(--color-text-muted)', marginBottom: 4, fontSize: 12 }}
-                        formatter={(value: number) => [
-                          <span style={{ 
-                            color: value >= 0 ? '#10b981' : '#ef4444',
-                            fontWeight: 600,
-                            fontFamily: 'var(--font-mono)'
-                          }}>
-                            {value >= 0 ? '+' : ''}${value.toFixed(2)}
-                          </span>,
-                          '累计盈利'
-                        ]}
+                        formatter={(value) => {
+                          const numValue = typeof value === 'number' ? value : 0;
+                          return [
+                            `${numValue >= 0 ? '+' : ''}$${numValue.toFixed(2)}`,
+                            '累计盈利'
+                          ];
+                        }}
                         labelFormatter={(label) => `第 ${label} 场`}
                       />
                       <ReferenceLine 
