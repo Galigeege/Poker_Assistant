@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store/useGameStore';
-import { ArrowLeft, LogOut, AlertCircle, Brain, X } from 'lucide-react';
+import { ArrowLeft, LogOut, AlertCircle, Brain, ChevronDown, ChevronUp } from 'lucide-react';
+import { useMobileMode } from '../hooks/useMobileMode';
 import Seat from './Seat';
 import Card from './Card';
 import Controls from './Controls';
@@ -11,8 +12,10 @@ import RoundResultModal from './RoundResult';
 import OpponentProfileModal from './OpponentProfileModal';
 import type { Player } from '../types';
 
-// 移动端断点
-const MOBILE_BREAKPOINT = 768;
+// 移动端位置类型
+type MobilePosition = 'bottom' | 'top' | 'left-top' | 'left-bottom' | 'right-top' | 'right-bottom';
+// 桌面端位置类型
+type DesktopPosition = 'bottom' | 'left' | 'top-left' | 'top-right' | 'right' | 'top';
 
 function GameRoom() {
   const { 
@@ -26,24 +29,25 @@ function GameRoom() {
     roundResult,
     startNextRound,
     needsApiKey,
-    needsApiKeyMessage
+    needsApiKeyMessage,
+    aiCopilotEnabled,
+    isConnecting,
+    currentStreet
   } = useGameStore();
 
-  const [selectedOpponent, setSelectedOpponent] = useState<Player | null>(null);
-  const [showMobileAI, setShowMobileAI] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const navigate = useNavigate();
+  // 回合阶段中文名称
+  const streetNamesCN: Record<string, string> = {
+    'preflop': '翻前',
+    'flop': '翻牌',
+    'turn': '转牌',
+    'river': '河牌',
+    'showdown': '摊牌'
+  };
 
-  // 检测是否移动端
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  const [selectedOpponent, setSelectedOpponent] = useState<Player | null>(null);
+  const [mobileAIExpanded, setMobileAIExpanded] = useState(false);
+  const navigate = useNavigate();
+  const isMobile = useMobileMode();
 
   const hero = players.find(p => p.name === '你');
   const heroStack = hero ? hero.stack : 0;
@@ -55,9 +59,9 @@ function GameRoom() {
     : players;
 
   // 桌面端位置映射
-  const getDesktopPosition = (player: Player, playerIndex: number): 'bottom' | 'left' | 'top-left' | 'top-right' | 'right' | 'top' => {
+  const getDesktopPosition = (player: Player, playerIndex: number): DesktopPosition => {
     if (player.name === '你') return 'bottom';
-    const positionMap: Record<number, 'bottom' | 'left' | 'top-left' | 'top-right' | 'right' | 'top'> = {
+    const positionMap: Record<number, DesktopPosition> = {
       1: 'left',
       2: 'top-left',
       3: 'top',
@@ -65,6 +69,20 @@ function GameRoom() {
       5: 'right'
     };
     return positionMap[playerIndex] || 'left';
+  };
+
+  // 移动端位置映射 - 纵向椭圆布局
+  const getMobilePosition = (player: Player, playerIndex: number): MobilePosition => {
+    if (player.name === '你') return 'bottom';
+    // 5个AI对手围绕纵向椭圆
+    const positionMap: Record<number, MobilePosition> = {
+      1: 'left-top',      // 左上
+      2: 'top',           // 顶部中央
+      3: 'right-top',     // 右上
+      4: 'right-bottom',  // 右下
+      5: 'left-bottom'    // 左下
+    };
+    return positionMap[playerIndex] || 'left-top';
   };
 
   const handlePlayerClick = (player: Player) => {
@@ -78,71 +96,39 @@ function GameRoom() {
     navigate('/');
   };
 
-  // ==================== 移动端 UI ====================
-  if (isMobile) {
-    // 移动端位置映射 - 竖向牌桌
-    const getMobilePosition = (player: Player, playerIndex: number): 'bottom' | 'left' | 'right' | 'top' | 'top-left' | 'top-right' => {
-      if (player.name === '你') return 'bottom';
-      // 5个对手的位置：上左、上、上右、左、右
-      const positionMap: Record<number, 'left' | 'right' | 'top' | 'top-left' | 'top-right'> = {
-        1: 'top-left',
-        2: 'top',
-        3: 'top-right',
-        4: 'left',
-        5: 'right'
-      };
-      return positionMap[playerIndex] || 'top';
-    };
-    
-    return (
-      <div className="fixed inset-0 bg-[var(--color-bg-deep)] flex flex-col overflow-hidden">
-        {/* 顶部导航 */}
-        <div className="flex-none flex items-center justify-between px-3 py-2 bg-[var(--color-bg-base)]/80 backdrop-blur-sm border-b border-[var(--color-border)] z-20">
-          <button 
-            onClick={handleLeaveTable}
-            className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
-            aria-label="返回首页"
-          >
-            <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
-          </button>
-          
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowMobileAI(true)}
-              className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors border border-[var(--color-gold-600)]/30"
-              aria-label="AI 助手"
-            >
-              <Brain className="w-5 h-5 text-[var(--color-gold-400)]" />
-            </button>
-            <button 
-              onClick={handleLeaveTable}
-              className="p-2 rounded-lg hover:bg-[var(--color-crimson-900)]/30 transition-colors"
-              aria-label="离开牌桌"
-            >
-              <LogOut className="w-5 h-5 text-[var(--color-crimson-400)]" />
-            </button>
-          </div>
-        </div>
+  // AI 建议数据
+  const advice = actionRequest?.ai_advice;
 
-        {/* API Key Warning */}
+  // ==================== 移动端布局 ====================
+  if (isMobile) {
+    return (
+      <div className="relative min-h-screen bg-[var(--color-bg-deep)] overflow-hidden flex flex-col">
+        {/* Background */}
+        <div className="absolute inset-0 bg-gradient-radial opacity-30" />
+        
+        {/* API Key Warning Banner - Mobile */}
         <AnimatePresence>
           {needsApiKey && (
             <motion.div 
-              className="flex-none px-3 py-2 bg-[var(--color-gold-900)]/20 border-b border-[var(--color-gold-600)]/30 z-10"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
+              className="absolute top-14 left-0 right-0 z-30 px-3"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
             >
-              <div className="flex items-center gap-2 text-xs text-[var(--color-gold-400)]">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span className="flex-1">{needsApiKeyMessage || '需要配置 API Key'}</span>
+              <div className="glass rounded-xl px-4 py-3 flex items-center justify-between gap-3 border border-[var(--color-gold-600)]/30">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <AlertCircle className="w-4 h-4 text-[var(--color-gold-500)] shrink-0" />
+                  <span className="text-xs text-[var(--color-text-secondary)] truncate">
+                    {needsApiKeyMessage || '需要配置 API Key'}
+                  </span>
+                </div>
                 <button
                   onClick={() => {
-                    localStorage.setItem('open_game_config_modal', '1');
+                    try { localStorage.setItem('open_game_config_modal', '1'); } catch {}
                     disconnect();
                     navigate('/');
                   }}
-                  className="px-2 py-1 bg-[var(--color-gold-600)] text-[var(--color-bg-deep)] rounded text-xs font-medium"
+                  className="btn-gold px-3 py-1.5 text-xs shrink-0"
                 >
                   配置
                 </button>
@@ -151,71 +137,302 @@ function GameRoom() {
           )}
         </AnimatePresence>
 
-        {/* 牌桌区域 */}
-        <div className="flex-1 flex items-center justify-center p-2 overflow-hidden">
-          <div className="relative w-full max-w-[340px] aspect-[3/4]">
-            {/* 竖向牌桌 */}
-            <div className="absolute inset-x-4 top-[15%] bottom-[20%] poker-felt rounded-[60px] border-[8px] border-[var(--color-bg-base)] shadow-2xl">
-              {/* 牌桌边框高亮 */}
-              <div className="absolute inset-0 rounded-[52px] border border-[var(--color-gold-600)]/20 pointer-events-none" />
-              
-              {/* 底池显示 */}
-              <div className="absolute top-4 left-1/2 -translate-x-1/2">
-                <div className="glass px-3 py-1.5 rounded-xl border border-[var(--color-gold-500)]/30">
-                  <div className="text-[8px] text-[var(--color-text-muted)] uppercase tracking-wider text-center">Pot</div>
-                  <div className="text-[var(--color-gold-400)] font-bold text-lg font-mono text-center">${pot}</div>
-                </div>
+        {/* Top Navigation Bar - Mobile */}
+        <motion.div 
+          className="relative z-20 px-3 py-2 flex justify-between items-center bg-[var(--color-bg-base)]/90 backdrop-blur-sm border-b border-[var(--color-border)]"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <button 
+            onClick={handleLeaveTable}
+            className="p-2 rounded-lg active:bg-[var(--color-bg-hover)] transition-all"
+            aria-label="返回首页"
+          >
+            <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
+          </button>
+          
+          {/* Center Info: Street + Pot */}
+          <div className="flex items-center gap-3">
+            {/* Round Stage Indicator */}
+            {currentStreet && (
+              <div className="px-2 py-0.5 rounded bg-[var(--color-emerald-900)]/40 border border-[var(--color-emerald-600)]/30">
+                <span className="text-[10px] font-bold text-[var(--color-emerald-400)] uppercase tracking-wider">
+                  {streetNamesCN[currentStreet] || currentStreet}
+                </span>
               </div>
+            )}
+            {/* Pot Display */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] text-[var(--color-text-dim)] uppercase">Pot</span>
+              <span className="text-base font-bold text-[var(--color-gold-400)] font-mono">${pot}</span>
+            </div>
+          </div>
+          
+          {/* AI Toggle / Leave */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setMobileAIExpanded(!mobileAIExpanded)}
+              className={`p-2 rounded-lg transition-all ${
+                aiCopilotEnabled ? 'bg-[var(--color-gold-600)]/20 text-[var(--color-gold-500)]' : 'text-[var(--color-text-dim)]'
+              }`}
+              aria-label="AI 助手"
+            >
+              <Brain className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={handleLeaveTable}
+              className="p-2 rounded-lg active:bg-[var(--color-crimson-900)]/30 transition-all"
+              aria-label="离开牌桌"
+            >
+              <LogOut className="w-4 h-4 text-[var(--color-crimson-400)]" />
+            </button>
+          </div>
+        </motion.div>
 
-              {/* 公共牌 */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1">
-                {communityCards.length > 0 ? (
-                  communityCards.map((card, i) => (
-                    <motion.div
-                      key={`${card}-${i}`}
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.1 }}
+        {/* AI Copilot Expandable Panel - Mobile */}
+        <AnimatePresence>
+          {mobileAIExpanded && aiCopilotEnabled && (
+            <motion.div
+              className="relative z-10 bg-[var(--color-bg-base)] border-b border-[var(--color-border)]"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="px-4 py-3">
+                {isConnecting ? (
+                  <div className="flex items-center gap-2 text-xs text-[var(--color-gold-400)]">
+                    <div className="w-4 h-4 border-2 border-[var(--color-gold-500)] border-t-transparent rounded-full animate-spin" />
+                    <span>AI 分析中…</span>
+                  </div>
+                ) : advice ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-lg font-bold capitalize ${
+                        advice.recommended_action?.toLowerCase() === 'fold' 
+                          ? 'text-[var(--color-crimson-400)]'
+                          : advice.recommended_action?.toLowerCase() === 'raise'
+                          ? 'text-[var(--color-gold-400)]'
+                          : 'text-[var(--color-emerald-400)]'
+                      }`}>
+                        {advice.recommended_action || advice.primary_strategy?.action || '—'}
+                      </span>
+                      {advice.win_probability && (
+                        <span className="text-xs text-[var(--color-text-muted)] font-mono">
+                          胜率 {advice.win_probability}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => setMobileAIExpanded(false)}
+                      className="p-1 text-[var(--color-text-dim)]"
                     >
-                      <Card card={card} size="sm" />
-                    </motion.div>
-                  ))
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
                 ) : (
-                  <div className="flex gap-1">
-                    {[1,2,3,4,5].map(i => (
-                      <div key={i} className="w-8 h-11 rounded border border-[var(--color-border)]/30 border-dashed" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[var(--color-text-dim)]">等待行动…</span>
+                    <button
+                      onClick={() => setMobileAIExpanded(false)}
+                      className="p-1 text-[var(--color-text-dim)]"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+                {advice?.reasoning && (
+                  <p className="text-[10px] text-[var(--color-text-secondary)] mt-2 line-clamp-2">
+                    {advice.reasoning}
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Collapsed AI Hint */}
+        {!mobileAIExpanded && aiCopilotEnabled && advice && (
+          <motion.button
+            className="relative z-10 w-full px-4 py-2 bg-[var(--color-bg-elevated)] border-b border-[var(--color-border)] flex items-center justify-between"
+            onClick={() => setMobileAIExpanded(true)}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="flex items-center gap-2">
+              <Brain className="w-4 h-4 text-[var(--color-gold-500)]" />
+              <span className={`text-sm font-bold capitalize ${
+                advice.recommended_action?.toLowerCase() === 'fold' 
+                  ? 'text-[var(--color-crimson-400)]'
+                  : advice.recommended_action?.toLowerCase() === 'raise'
+                  ? 'text-[var(--color-gold-400)]'
+                  : 'text-[var(--color-emerald-400)]'
+              }`}>
+                {advice.recommended_action || advice.primary_strategy?.action}
+              </span>
+              {advice.win_probability && (
+                <span className="text-[10px] text-[var(--color-text-muted)] font-mono">
+                  {advice.win_probability}
+                </span>
+              )}
+            </div>
+            <ChevronDown className="w-4 h-4 text-[var(--color-text-dim)]" />
+          </motion.button>
+        )}
+
+        {/* Current Action Player Indicator - Mobile */}
+        {actionRequest && (
+          <motion.div 
+            className="px-4 py-1.5 bg-[var(--color-gold-900)]/30 border-b border-[var(--color-gold-600)]/20"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-[var(--color-gold-500)] animate-pulse" />
+              <span className="text-xs text-[var(--color-gold-400)]">轮到你行动</span>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Poker Table Area - Mobile (Vertical Ellipse) */}
+        <div className="flex-1 flex items-center justify-center px-4 py-2 relative">
+          <motion.div 
+            className="relative w-full max-w-[340px]"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            {/* Vertical Ellipse Table */}
+            <div className="relative w-full aspect-[3/4] poker-felt rounded-[50%] border-[8px] border-[var(--color-bg-base)] shadow-2xl flex items-center justify-center">
+              
+              {/* Table Edge */}
+              <div className="absolute inset-0 rounded-[50%] border border-[var(--color-gold-600)]/20 pointer-events-none" />
+              
+              {/* Community Cards - Mobile */}
+              <AnimatePresence>
+                {communityCards.length > 0 && (
+                  <motion.div 
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-wrap justify-center gap-1 max-w-[95%]"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                  >
+                    {communityCards.map((card, i) => (
+                      <motion.div
+                        key={`${card}-${i}`}
+                        initial={{ opacity: 0, y: -15, rotateY: 180 }}
+                        animate={{ opacity: 1, y: 0, rotateY: 0 }}
+                        transition={{ delay: i * 0.08 }}
+                      >
+                        <Card card={card} size="sm" />
+                      </motion.div>
                     ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Player Seats - Mobile */}
+              {orderedPlayers.filter(p => p.name !== '你').map((player, idx) => {
+                const position = getMobilePosition(player, idx + 1);
+                const isActive = actionRequest 
+                  ? (actionRequest.round_state?.seats?.find((s: Player) => s.uuid === player.uuid)?.state === 'participating') 
+                  : false;
+                
+                return (
+                  <Seat
+                    key={player.uuid}
+                    player={player}
+                    position={position}
+                    isDealer={player.is_dealer}
+                    isActive={isActive}
+                    heroHoleCards={heroHoleCards}
+                    positionLabel={player.position_label}
+                    onPlayerClick={handlePlayerClick}
+                    isMobile={true}
+                  />
+                );
+              })}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Hero Section - Mobile */}
+        <div className="relative z-10 bg-[var(--color-bg-base)] border-t border-[var(--color-border)]">
+          {/* Hero Info + Cards */}
+          <div className="px-4 py-3 flex items-center justify-center gap-4">
+            {/* Hero Avatar & Info */}
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <img 
+                  src={`https://api.dicebear.com/9.x/adventurer/svg?seed=你`}
+                  alt="你的头像"
+                  className="w-12 h-12 rounded-full border-2 border-[var(--color-gold-500)] bg-[var(--color-bg-elevated)]"
+                />
+                {hero?.is_dealer && (
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white text-black text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-[var(--color-bg-base)]">
+                    D
+                  </div>
+                )}
+                {hero?.position_label && (
+                  <div className="absolute -top-1 -right-1 px-1.5 py-0.5 bg-[var(--color-gold-600)] text-[8px] font-bold rounded text-black">
+                    {hero.position_label}
                   </div>
                 )}
               </div>
+              <div className="text-center">
+                <div className="text-xs text-[var(--color-text-muted)]">你</div>
+                <div className="text-lg font-bold text-[var(--color-gold-400)] font-mono">${heroStack}</div>
+              </div>
             </div>
 
-            {/* 玩家座位 */}
-            {orderedPlayers.map((player, idx) => {
-              const position = getMobilePosition(player, idx);
-              const isActive = actionRequest 
-                ? (actionRequest.round_state?.seats?.find((s: Player) => s.uuid === player.uuid)?.state === 'participating') 
-                : false;
-              
-              return (
-                <MobileSeat
-                  key={player.uuid}
-                  player={player}
-                  position={position}
-                  isActive={isActive}
-                  heroHoleCards={player.name === '你' ? heroHoleCards : undefined}
-                  onPlayerClick={handlePlayerClick}
-                />
-              );
-            })}
+            {/* Hero Cards */}
+            <div className="flex gap-1">
+              {heroHoleCards && heroHoleCards.length > 0 ? (
+                heroHoleCards.map((card, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: -10, rotateY: 180 }}
+                    animate={{ opacity: 1, y: 0, rotateY: 0 }}
+                    transition={{ delay: idx * 0.1 }}
+                    className={idx === 1 ? '-ml-3' : ''}
+                  >
+                    <Card card={card} size="md" />
+                  </motion.div>
+                ))
+              ) : (
+                <>
+                  <Card hidden size="md" />
+                  <Card hidden size="md" className="-ml-3" />
+                </>
+              )}
+            </div>
+
+            {/* Last Action */}
+            {hero?.last_action && (
+              <div className="glass px-2 py-1 rounded-lg">
+                <span className={`text-xs font-bold uppercase ${
+                  hero.last_action.action.toLowerCase() === 'fold' 
+                    ? 'text-[var(--color-crimson-400)]'
+                    : hero.last_action.action.toLowerCase() === 'raise'
+                    ? 'text-[var(--color-gold-400)]'
+                    : 'text-[var(--color-emerald-400)]'
+                }`}>
+                  {hero.last_action.action}
+                </span>
+                {hero.last_action.amount > 0 && (
+                  <span className="text-xs text-[var(--color-text-secondary)] ml-1 font-mono">
+                    ${hero.last_action.amount}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* 控制面板 - 底部固定 */}
+        {/* Controls Panel - Mobile Fixed Bottom */}
         <AnimatePresence>
           {actionRequest && (
             <motion.div 
-              className="flex-none bg-[var(--color-bg-base)] border-t border-[var(--color-border)] p-3 pb-safe"
+              className="relative z-30"
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
@@ -231,45 +448,7 @@ function GameRoom() {
           )}
         </AnimatePresence>
 
-        {/* 移动端 AI 抽屉 */}
-        <AnimatePresence>
-          {showMobileAI && (
-            <>
-              <motion.div
-                className="fixed inset-0 bg-black/60 z-40"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setShowMobileAI(false)}
-              />
-              <motion.div
-                className="fixed inset-x-0 bottom-0 z-50 max-h-[80vh]"
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              >
-                <div className="bg-[var(--color-bg-base)] rounded-t-2xl overflow-hidden border-t border-[var(--color-border)]">
-                  <div className="flex justify-center pt-2 pb-1">
-                    <div className="w-10 h-1 rounded-full bg-[var(--color-border)]" />
-                  </div>
-                  <button
-                    onClick={() => setShowMobileAI(false)}
-                    className="absolute top-2 right-3 p-2 rounded-full hover:bg-[var(--color-bg-hover)]"
-                    aria-label="关闭"
-                  >
-                    <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
-                  </button>
-                  <div className="max-h-[calc(80vh-40px)] overflow-y-auto">
-                    <AICopilot isMobile />
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* Round Result Modal */}
+        {/* Modals */}
         <AnimatePresence>
           {roundResult && (
             <RoundResultModal
@@ -280,7 +459,6 @@ function GameRoom() {
           )}
         </AnimatePresence>
 
-        {/* Opponent Profile Modal */}
         <AnimatePresence>
           {selectedOpponent && (
             <OpponentProfileModal
@@ -294,7 +472,7 @@ function GameRoom() {
     );
   }
 
-  // ==================== 桌面端 UI (保持原有布局) ====================
+  // ==================== 桌面端布局 (保持不变) ====================
   return (
     <div className="relative min-h-screen bg-[var(--color-bg-deep)] overflow-hidden">
       {/* Background Gradient */}
@@ -309,7 +487,7 @@ function GameRoom() {
         
         {/* API Key Warning Banner */}
         <AnimatePresence>
-          {needsApiKey && (
+        {needsApiKey && (
             <motion.div 
               className="absolute top-20 left-0 right-0 z-30 px-4"
               initial={{ opacity: 0, y: -20 }}
@@ -320,26 +498,26 @@ function GameRoom() {
                 <div className="flex items-center gap-3">
                   <AlertCircle className="w-5 h-5 text-[var(--color-gold-500)]" aria-hidden="true" />
                   <span className="text-sm text-[var(--color-text-secondary)]">
-                    {needsApiKeyMessage || '需要配置 API Key 才能使用 AI 功能'}
+                {needsApiKeyMessage || '需要配置 API Key 才能使用 AI 功能'}
                   </span>
-                </div>
-                <button
-                  onClick={() => {
-                    try {
-                      localStorage.setItem('open_game_config_modal', '1');
-                    } catch {
-                      // ignore
-                    }
-                    disconnect();
-                    navigate('/');
-                  }}
-                  className="btn-gold px-4 py-2 text-sm"
-                >
-                  去配置
-                </button>
               </div>
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.setItem('open_game_config_modal', '1');
+                  } catch {
+                    // ignore
+                  }
+                  disconnect();
+                  navigate('/');
+                }}
+                  className="btn-gold px-4 py-2 text-sm"
+              >
+                去配置
+              </button>
+            </div>
             </motion.div>
-          )}
+        )}
         </AnimatePresence>
 
         {/* Top Navigation Bar */}
@@ -349,22 +527,22 @@ function GameRoom() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <button 
+            <button 
             onClick={handleLeaveTable}
             className="glass p-3 rounded-xl hover:bg-[var(--color-bg-hover)] transition-all duration-200 group"
             aria-label="返回首页"
-          >
+            >
             <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)] group-hover:text-[var(--color-text-primary)] transition-colors" />
-          </button>
+            </button>
           
-          <button 
+            <button 
             onClick={handleLeaveTable}
             className="glass px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-[var(--color-crimson-900)]/30 hover:border-[var(--color-crimson-600)]/50 transition-all duration-200 border border-transparent"
             aria-label="离开牌桌"
-          >
+            >
             <LogOut className="w-4 h-4 text-[var(--color-crimson-400)]" aria-hidden="true" />
             <span className="text-sm font-medium text-[var(--color-crimson-300)]">离开牌桌</span>
-          </button>
+            </button>
         </motion.div>
 
         {/* Poker Table Area */}
@@ -376,7 +554,7 @@ function GameRoom() {
             transition={{ duration: 0.5 }}
           >
             {/* Table */}
-            <div className="relative w-[850px] h-[420px] poker-felt rounded-[200px] border-[16px] border-[var(--color-bg-base)] shadow-2xl flex items-center justify-center">
+            <div className="relative w-[850px] h-[420px] md:w-[950px] md:h-[475px] poker-felt rounded-[200px] border-[16px] border-[var(--color-bg-base)] shadow-2xl flex items-center justify-center">
               
               {/* Table Edge Highlight */}
               <div className="absolute inset-0 rounded-[184px] border border-[var(--color-gold-600)]/20 pointer-events-none" />
@@ -394,54 +572,55 @@ function GameRoom() {
                   </div>
                   <div className="text-[var(--color-gold-400)] font-bold text-3xl font-mono text-center">
                     ${pot}
-                  </div>
-                </div>
+          </div>
+        </div>
               </motion.div>
 
               {/* Community Cards */}
               <AnimatePresence>
-                {communityCards.length > 0 && (
+            {communityCards.length > 0 && (
                   <motion.div 
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-3 z-0"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 25 }}
                   >
-                    {communityCards.map((card, i) => (
+                {communityCards.map((card, i) => (
                       <motion.div
                         key={`${card}-${i}`}
                         initial={{ opacity: 0, y: -30, rotateY: 180 }}
                         animate={{ opacity: 1, y: 0, rotateY: 0 }}
                         transition={{ delay: i * 0.1, duration: 0.4 }}
                       >
-                        <Card card={card} size="md" />
+                        <Card card={card} size="responsive" />
                       </motion.div>
-                    ))}
+                ))}
                   </motion.div>
-                )}
+            )}
               </AnimatePresence>
 
               {/* Player Seats */}
-              {orderedPlayers.map((player, idx) => {
-                const position = getDesktopPosition(player, idx);
+            {orderedPlayers.map((player, idx) => {
+              const position = getDesktopPosition(player, idx);
                 const isActive = actionRequest 
                   ? (actionRequest.round_state?.seats?.find((s: Player) => s.uuid === player.uuid)?.state === 'participating') 
                   : false;
-                
-                return (
-                  <Seat
-                    key={player.uuid}
-                    player={player}
-                    position={position}
-                    isDealer={player.is_dealer}
-                    isActive={isActive}
-                    heroHoleCards={heroHoleCards}
-                    positionLabel={player.position_label}
-                    onPlayerClick={handlePlayerClick}
-                  />
-                );
-              })}
-            </div>
+              
+              return (
+                <Seat
+                  key={player.uuid}
+                  player={player}
+                  position={position}
+                  isDealer={player.is_dealer}
+                  isActive={isActive}
+                  heroHoleCards={heroHoleCards}
+                  positionLabel={player.position_label}
+                  onPlayerClick={handlePlayerClick}
+                  isMobile={false}
+                />
+              );
+            })}
+          </div>
           </motion.div>
         </div>
 
@@ -454,12 +633,13 @@ function GameRoom() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
             >
-              <Controls 
-                onAction={sendAction}
-                actionRequest={actionRequest}
-                playerStack={heroStack}
-                potSize={pot}
-              />
+          <Controls 
+            onAction={sendAction}
+            actionRequest={actionRequest}
+            playerStack={heroStack}
+            potSize={pot}
+            isMobile={false}
+          />
             </motion.div>
           )}
         </AnimatePresence>
@@ -472,155 +652,27 @@ function GameRoom() {
 
       {/* Round Result Modal */}
       <AnimatePresence>
-        {roundResult && (
-          <RoundResultModal
-            result={roundResult}
+      {roundResult && (
+        <RoundResultModal
+          result={roundResult}
             onClose={() => {}}
-            onNextRound={() => {
-              startNextRound();
-            }}
-          />
-        )}
+          onNextRound={() => {
+            startNextRound();
+          }}
+        />
+      )}
       </AnimatePresence>
 
       {/* Opponent Profile Modal */}
       <AnimatePresence>
-        {selectedOpponent && (
-          <OpponentProfileModal
-            player={selectedOpponent}
-            isOpen={!!selectedOpponent}
-            onClose={() => setSelectedOpponent(null)}
-          />
-        )}
+      {selectedOpponent && (
+        <OpponentProfileModal
+          player={selectedOpponent}
+          isOpen={!!selectedOpponent}
+          onClose={() => setSelectedOpponent(null)}
+        />
+      )}
       </AnimatePresence>
-    </div>
-  );
-}
-
-// 移动端座位组件 - 围绕牌桌
-function MobileSeat({ 
-  player, 
-  position,
-  isActive, 
-  heroHoleCards,
-  onPlayerClick 
-}: { 
-  player: Player; 
-  position: 'bottom' | 'left' | 'right' | 'top' | 'top-left' | 'top-right';
-  isActive: boolean;
-  heroHoleCards?: string[];
-  onPlayerClick: (player: Player) => void;
-}) {
-  const isHero = player.name === '你';
-  const isFolded = player.state === 'folded';
-  const avatarStyle = isHero ? 'adventurer' : 'bottts';
-  const avatarUrl = `https://api.dicebear.com/9.x/${avatarStyle}/svg?seed=${player.name}`;
-  
-  // 移动端位置样式 - 竖向牌桌
-  const positionStyles: Record<string, string> = {
-    'bottom': 'bottom-0 left-1/2 -translate-x-1/2',
-    'top': 'top-[2%] left-1/2 -translate-x-1/2',
-    'top-left': 'top-[8%] left-[10%]',
-    'top-right': 'top-[8%] right-[10%]',
-    'left': 'top-[42%] left-0',
-    'right': 'top-[42%] right-0',
-  };
-
-  // 位置标签颜色
-  const getPositionBadgeStyle = (label: string) => {
-    switch (label) {
-      case 'BTN': return 'bg-white text-[var(--color-bg-deep)]';
-      case 'SB': return 'bg-blue-600 text-white';
-      case 'BB': return 'bg-orange-600 text-white';
-      default: return 'bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]';
-    }
-  };
-  
-  return (
-    <div 
-      className={`absolute ${positionStyles[position]} flex flex-col items-center z-10 ${isFolded ? 'opacity-40 grayscale' : ''}`}
-      onClick={() => !isHero && onPlayerClick(player)}
-    >
-      {/* 对手隐藏的手牌 */}
-      {!isHero && !isFolded && (
-        <div className="flex -space-x-2 mb-1">
-          <div className="w-5 h-7 rounded bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border border-[#2a5a9e]/40 shadow-sm" />
-          <div className="w-5 h-7 rounded bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border border-[#2a5a9e]/40 shadow-sm" />
-        </div>
-      )}
-
-      {/* Hero 手牌 - 显示在头像上方 */}
-      {isHero && (
-        <div className="flex gap-1 mb-1">
-          {heroHoleCards && heroHoleCards.length > 0 ? (
-            heroHoleCards.map((card, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <Card card={card} size="md" />
-              </motion.div>
-            ))
-          ) : (
-            <>
-              <Card hidden size="md" />
-              <Card hidden size="md" />
-            </>
-          )}
-        </div>
-      )}
-      
-      {/* 头像 + 信息 */}
-      <div className="flex flex-col items-center">
-        {/* 最后行动气泡 */}
-        <AnimatePresence>
-          {player.last_action && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              className={`mb-1 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                player.last_action.action.toLowerCase() === 'fold' ? 'bg-[var(--color-crimson-900)]/50 text-[var(--color-crimson-400)]' :
-                player.last_action.action.toLowerCase() === 'raise' ? 'bg-[var(--color-gold-900)]/50 text-[var(--color-gold-400)]' :
-                'bg-[var(--color-emerald-900)]/50 text-[var(--color-emerald-400)]'
-              }`}
-            >
-              {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
-                ? 'CHECK' 
-                : player.last_action.action.toUpperCase()}
-              {player.last_action.amount > 0 && ` $${player.last_action.amount}`}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 头像 */}
-        <div className={`relative ${isHero ? 'w-10 h-10' : 'w-9 h-9'} rounded-full overflow-hidden border-2 ${
-          isActive ? 'border-[var(--color-gold-500)] shadow-lg shadow-[var(--color-gold-500)]/30' : 
-          isHero ? 'border-[var(--color-gold-500)]' : 'border-[var(--color-border)]'
-        } bg-[var(--color-bg-elevated)]`}>
-          <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
-          {player.is_dealer && (
-            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white text-[var(--color-bg-deep)] text-[7px] font-bold rounded-full flex items-center justify-center border border-[var(--color-bg-elevated)]">
-              D
-            </div>
-          )}
-        </div>
-        
-        {/* 位置标签 */}
-        {player.position_label && (
-          <span className={`mt-0.5 text-[7px] px-1 py-0.5 rounded font-bold ${getPositionBadgeStyle(player.position_label)}`}>
-            {player.position_label}
-          </span>
-        )}
-        
-        {/* 名称和筹码 */}
-        <div className="text-center mt-0.5">
-          <div className="text-[8px] text-[var(--color-text-muted)] truncate max-w-[50px]">{player.name}</div>
-          <div className={`${isHero ? 'text-sm' : 'text-xs'} font-bold text-[var(--color-gold-400)] font-mono`}>${player.stack}</div>
-        </div>
-      </div>
     </div>
   );
 }

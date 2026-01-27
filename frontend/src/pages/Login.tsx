@@ -199,13 +199,13 @@ const Login: React.FC = () => {
             <p className="text-[var(--color-text-muted)] text-sm mb-3">
               还没有账户？
             </p>
-            <button
+              <button
               type="button"
-              onClick={() => navigate('/register')}
+                onClick={() => navigate('/register')}
               className="btn-ghost w-full py-3 font-medium"
-            >
-              立即注册
-            </button>
+              >
+                立即注册
+              </button>
           </div>
         </motion.div>
 

@@ -279,18 +279,18 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
-                onClick={onBack}
+          <button
+            onClick={onBack}
                 className="p-2 rounded-xl hover:bg-[var(--color-bg-hover)] transition-colors"
                 aria-label="返回"
-              >
+          >
                 <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
-              </button>
+          </button>
               <div>
                 <h1 className="font-display text-2xl font-bold text-gold-gradient">对局详情</h1>
                 <p className="text-xs text-[var(--color-text-muted)]">{rounds.length} 局对战记录</p>
-              </div>
-            </div>
+        </div>
+      </div>
           </div>
         </div>
       </motion.div>
@@ -333,7 +333,7 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
           <div className="text-center py-16 text-[var(--color-text-dim)]">
             <div className="p-4 rounded-full bg-[var(--color-bg-base)] inline-block mb-4">
               <Trophy className="w-10 h-10 opacity-30" />
-            </div>
+          </div>
             <p className="text-sm">未找到对局数据</p>
           </div>
         )}
@@ -447,7 +447,7 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                     <div className="flex items-center gap-2 mb-4">
                       <User className="w-5 h-5 text-[var(--color-gold-500)]" />
                       <h3 className="font-display text-lg font-semibold text-[var(--color-text-primary)]">手牌</h3>
-                    </div>
+                  </div>
                     <div className="flex gap-6 flex-wrap">
                       {(() => {
                         const heroUuid = selectedRound.roundState?.seats?.find((s: any) => s.name === '你')?.uuid;
@@ -617,8 +617,8 @@ const ReplayDetail: React.FC<ReplayDetailProps> = ({ sessionId, onBack }) => {
                             {/* Street Header */}
                             <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--color-border)]">
                               <span className="text-[var(--color-gold-400)] font-bold text-lg">
-                                {streetNamesCN[street.street] || street.street}
-                              </span>
+                                  {streetNamesCN[street.street] || street.street}
+                                </span>
                               <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium ${
                                 street.is_correct
                                   ? 'bg-[var(--color-emerald-600)]/20 text-[var(--color-emerald-400)] border border-[var(--color-emerald-600)]/30'

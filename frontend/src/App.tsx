@@ -161,8 +161,8 @@ function HomePage() {
       {/* Main Content */}
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center p-6">
         <div className="max-w-5xl w-full space-y-16 text-center">
-          
-          {/* Header */}
+        
+        {/* Header */}
           <motion.div 
             className="space-y-6"
             initial={{ opacity: 0, y: 30 }}
@@ -177,7 +177,7 @@ function HomePage() {
                 <Diamond className="w-6 h-6 text-[var(--color-crimson-500)]" aria-hidden="true" />
                 <Club className="w-6 h-6 text-[var(--color-gold-500)]" aria-hidden="true" />
               </div>
-            </div>
+        </div>
             
             <h1 className="font-display text-6xl md:text-7xl font-bold tracking-tight">
               <span className="text-gold-gradient">Poker</span>
@@ -191,7 +191,7 @@ function HomePage() {
             </p>
           </motion.div>
 
-          {/* Main Actions */}
+        {/* Main Actions */}
           <motion.div 
             className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
             initial={{ opacity: 0, y: 30 }}
@@ -214,27 +214,27 @@ function HomePage() {
                 }
                 connect();
                 navigate('/game');
-              }}
+            }}
               variant="primary"
-              disabled={isConnecting}
-            />
+            disabled={isConnecting}
+          />
             <ActionCard 
               icon={<Settings className="w-12 h-12" />}
               title="自定义游戏"
               description="配置盲注、AI 难度等参数"
-              onClick={() => setShowConfigModal(true)}
+            onClick={() => setShowConfigModal(true)}
               variant="secondary"
-            />
+          />
             <ActionCard 
               icon={<History className="w-12 h-12" />}
               title="复盘中心"
               description="分析历史对局与统计数据"
-              onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/dashboard')}
               variant="secondary"
-            />
+          />
           </motion.div>
 
-          {/* Stats Footer */}
+        {/* Stats Footer */}
           <motion.div 
             className="flex justify-center gap-8 md:gap-16"
             initial={{ opacity: 0 }}
@@ -248,7 +248,7 @@ function HomePage() {
             <div className="flex items-center gap-3 chip">
               <Crown className="w-4 h-4 text-[var(--color-gold-500)]" aria-hidden="true" />
               <span className="text-[var(--color-text-secondary)]">胜率: <span className="font-mono text-[var(--color-text-primary)]">0%</span></span>
-            </div>
+          </div>
           </motion.div>
 
           {/* Powered By */}
@@ -261,7 +261,7 @@ function HomePage() {
             <div className="flex items-center justify-center gap-2 text-[var(--color-text-dim)] text-sm">
               <Sparkles className="w-4 h-4 text-[var(--color-gold-600)]" aria-hidden="true" />
               <span>Powered by DeepSeek AI</span>
-            </div>
+          </div>
           </motion.div>
         </div>
       </div>
@@ -269,38 +269,38 @@ function HomePage() {
       {/* Game Config Modal */}
       <AnimatePresence>
         {showConfigModal && (
-          <GameConfigModal
-            isOpen={showConfigModal}
-            onClose={() => setShowConfigModal(false)}
-            onSave={async (config: GameConfig) => {
-              localStorage.setItem('gameConfig', JSON.stringify({
-                smallBlind: config.smallBlind,
-                bigBlind: config.bigBlind,
-                startStack: config.startStack,
-              }));
-              
-              const start = async () => {
-                try {
-                  const { createSession } = await import('./services/sessionService');
-                  const session = await createSession({
-                    small_blind: config.smallBlind,
-                    big_blind: config.bigBlind,
-                    initial_stack: config.startStack,
-                    deepseek_api_key: config.deepseekApiKey || undefined,
-                  });
-                  localStorage.setItem('current_session_id', session.id);
-                  localStorage.setItem(`backend_session_${session.id}`, session.id);
-                } catch (error) {
-                  console.error('Failed to create session:', error);
-                }
-                await refreshApiKeyStatus();
-                connect();
-                navigate('/game');
-              };
+      <GameConfigModal
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        onSave={async (config: GameConfig) => {
+          localStorage.setItem('gameConfig', JSON.stringify({
+            smallBlind: config.smallBlind,
+            bigBlind: config.bigBlind,
+            startStack: config.startStack,
+          }));
+          
+          const start = async () => {
+            try {
+              const { createSession } = await import('./services/sessionService');
+              const session = await createSession({
+                small_blind: config.smallBlind,
+                big_blind: config.bigBlind,
+                initial_stack: config.startStack,
+                deepseek_api_key: config.deepseekApiKey || undefined,
+              });
+              localStorage.setItem('current_session_id', session.id);
+              localStorage.setItem(`backend_session_${session.id}`, session.id);
+            } catch (error) {
+              console.error('Failed to create session:', error);
+            }
+            await refreshApiKeyStatus();
+            connect();
+            navigate('/game');
+          };
 
-              await start();
-            }}
-          />
+          await start();
+        }}
+      />
         )}
       </AnimatePresence>
     </div>

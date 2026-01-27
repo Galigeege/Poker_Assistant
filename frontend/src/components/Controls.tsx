@@ -84,22 +84,40 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
 
   const presets = [
     { label: 'Min', val: minBet },
-    { label: '½', val: Math.floor(potSize / 2) + call_amount },
+    { label: '½ Pot', val: Math.floor(potSize / 2) + call_amount },
     { label: 'Pot', val: potSize + call_amount },
-    { label: 'All', val: maxBet },
+    { label: 'All In', val: maxBet },
   ];
 
   // ==================== 移动端布局 ====================
   if (isMobile) {
+    // 移动端快捷按钮显示具体金额
+    const mobilePresets = [
+      { label: 'Min', val: minBet, display: `$${minBet}` },
+      { label: '½Pot', val: Math.floor(potSize / 2) + call_amount, display: `$${Math.floor(potSize / 2) + call_amount}` },
+      { label: 'Pot', val: potSize + call_amount, display: `$${potSize + call_amount}` },
+      { label: 'All', val: maxBet, display: `$${maxBet}` },
+    ];
+
     return (
-      <div className="space-y-3">
-        {/* Raise Input Row */}
-        <div className="flex items-center gap-2">
+      <motion.div 
+        className="w-full bg-[var(--color-bg-base)] border-t border-[var(--color-border)] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))]"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+      >
+        {/* Raise Amount Row - Mobile Compact */}
+        <div className="flex items-center gap-2 mb-2">
+          <label htmlFor={inputId} className="text-[var(--color-text-muted)] text-[10px] shrink-0 uppercase tracking-wider">
+            Raise
+          </label>
           <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-gold-500)] font-bold font-mono">$</span>
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--color-gold-500)] font-bold text-xs font-mono">
+              $
+            </span>
             <input 
-              id={`${inputId}-mobile`}
-              name="raise-amount-mobile"
+              id={inputId}
+              name="raise-amount"
               type="number"
               value={inputValue}
               onChange={(e) => {
@@ -110,10 +128,10 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
               min={minBet}
               max={maxBet}
               className={`
-                w-full pl-7 pr-3 py-2.5
+                w-full pl-5 pr-2 py-1.5 
                 bg-[var(--color-bg-deep)] 
-                border rounded-xl
-                text-[var(--color-gold-400)] font-bold text-lg font-mono
+                border rounded-lg 
+                text-[var(--color-gold-400)] font-bold text-sm font-mono
                 focus:outline-none transition-all
                 ${error 
                   ? 'border-[var(--color-crimson-500)]' 
@@ -124,34 +142,36 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
               autoComplete="off"
             />
           </div>
-          
-          {/* Quick Presets */}
-          <div className="flex gap-1">
-            {presets.map((preset) => (
-              <button 
-                key={preset.label}
-                type="button"
-                onClick={() => handlePreset(preset.val)}
-                disabled={!canRaise}
-                className="
-                  px-3 py-2.5 text-xs font-bold
-                  bg-[var(--color-bg-elevated)] hover:bg-[var(--color-bg-hover)]
-                  rounded-xl text-[var(--color-text-secondary)]
-                  transition-all border border-[var(--color-border)]
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  active:scale-95
-                "
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
         </div>
-        
-        {/* Error */}
+
+        {/* Preset Buttons Row - Mobile with Amounts */}
+        <div className="flex gap-1.5 mb-2">
+          {mobilePresets.map((preset) => (
+            <button 
+              key={preset.label}
+              type="button"
+              onClick={() => handlePreset(preset.val)}
+              disabled={!canRaise}
+              className="
+                flex-1 py-1.5 text-[10px] font-medium
+                bg-[var(--color-bg-elevated)] active:bg-[var(--color-gold-900)]/30
+                rounded-md text-[var(--color-text-secondary)]
+                transition-all border border-[var(--color-border)]
+                active:border-[var(--color-gold-500)]/50
+                disabled:opacity-40 disabled:cursor-not-allowed
+                flex flex-col items-center leading-tight
+              "
+            >
+              <span className="text-[var(--color-text-muted)]">{preset.label}</span>
+              <span className="text-[var(--color-gold-400)] font-mono text-[9px]">{preset.display}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Error Message - Mobile */}
         {error && (
           <motion.div 
-            className="text-xs text-[var(--color-crimson-400)] bg-[var(--color-crimson-900)]/20 px-3 py-2 rounded-xl border border-[var(--color-crimson-800)]/30"
+            className="text-[10px] text-[var(--color-crimson-400)] bg-[var(--color-crimson-900)]/20 px-2 py-1 rounded mb-2"
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
             role="alert"
@@ -160,17 +180,18 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
           </motion.div>
         )}
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-3 gap-2">
+        {/* Action Buttons Row - Mobile Compact */}
+        <div className="flex gap-2">
           <button 
             type="button"
             onClick={() => onAction('fold', 0)}
             className="
-              py-4 rounded-xl font-bold text-white
+              flex-1 py-3 rounded-lg font-bold text-white text-sm
               bg-gradient-to-b from-[var(--color-crimson-600)] to-[var(--color-crimson-700)]
-              active:from-[var(--color-crimson-700)] active:to-[var(--color-crimson-800)]
-              shadow-lg shadow-[var(--color-crimson-900)]/40
-              transition-all active:scale-95
+              active:from-[var(--color-crimson-500)] active:to-[var(--color-crimson-600)]
+              active:brightness-110
+              shadow-md shadow-[var(--color-crimson-900)]/30
+              transition-all active:scale-[0.97]
             "
             aria-label="Fold 弃牌"
           >
@@ -181,17 +202,20 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
             type="button"
             onClick={() => onAction('call', call_amount)}
             className="
-              py-4 rounded-xl font-bold text-white
+              flex-1 py-3 rounded-lg font-bold text-white text-sm
               bg-gradient-to-b from-[var(--color-emerald-600)] to-[var(--color-emerald-700)]
-              active:from-[var(--color-emerald-700)] active:to-[var(--color-emerald-800)]
-              shadow-lg shadow-[var(--color-emerald-900)]/40
-              transition-all active:scale-95
+              active:from-[var(--color-emerald-500)] active:to-[var(--color-emerald-600)]
+              active:brightness-110
+              shadow-md shadow-[var(--color-emerald-900)]/30
+              transition-all active:scale-[0.97]
             "
             aria-label={canCheck ? 'Check 过牌' : `Call 跟注 $${call_amount}`}
           >
-            <span>{canCheck ? 'CHECK' : 'CALL'}</span>
-            {!canCheck && call_amount > 0 && (
-              <span className="block text-xs opacity-80 font-mono">${call_amount}</span>
+            {canCheck ? 'CHECK' : (
+              <span className="flex flex-col items-center leading-tight">
+                <span>CALL</span>
+                <span className="text-[10px] opacity-80 font-mono">${call_amount}</span>
+              </span>
             )}
           </button>
           
@@ -200,24 +224,27 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
             onClick={handleRaise}
             disabled={!canRaise || minBet >= maxBet}
             className="
-              py-4 rounded-xl font-bold text-[var(--color-bg-deep)]
+              flex-1 py-3 rounded-lg font-bold text-[var(--color-bg-deep)] text-sm
               bg-gradient-to-b from-[var(--color-gold-400)] to-[var(--color-gold-600)]
-              active:from-[var(--color-gold-500)] active:to-[var(--color-gold-700)]
-              shadow-lg shadow-[var(--color-gold-900)]/40
-              transition-all active:scale-95
-              disabled:opacity-50 disabled:cursor-not-allowed
+              active:from-[var(--color-gold-300)] active:to-[var(--color-gold-500)]
+              active:brightness-110
+              shadow-md shadow-[var(--color-gold-900)]/30
+              transition-all active:scale-[0.97]
+              disabled:opacity-40 disabled:cursor-not-allowed
             "
             aria-label={`Raise 加注到 $${validRaiseAmount}`}
           >
-            <span>RAISE</span>
-            <span className="block text-xs opacity-80 font-mono">${validRaiseAmount}</span>
+            <span className="flex flex-col items-center leading-tight">
+              <span>RAISE</span>
+              <span className="text-[10px] opacity-80 font-mono">${validRaiseAmount}</span>
+            </span>
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
-  // ==================== 桌面端布局 ====================
+  // ==================== 桌面端布局 (保持不变) ====================
   return (
     <motion.div 
       className="w-80 glass rounded-2xl p-5 shadow-2xl border border-[var(--color-border)]"
@@ -292,12 +319,7 @@ const Controls: React.FC<ControlsProps> = ({ onAction, actionRequest, playerStac
 
       {/* Preset Buttons */}
       <div className="grid grid-cols-4 gap-2 mb-5">
-        {[
-          { label: 'Min', val: minBet },
-          { label: '½ Pot', val: Math.floor(potSize / 2) + call_amount },
-          { label: 'Pot', val: potSize + call_amount },
-          { label: 'All In', val: maxBet },
-        ].map((preset) => (
+        {presets.map((preset) => (
           <button 
             key={preset.label}
             type="button"

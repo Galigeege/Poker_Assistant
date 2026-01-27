@@ -3,14 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { Player } from '../types';
 import Card from './Card';
 
+// 桌面端位置类型
+type DesktopPosition = 'bottom' | 'left' | 'top' | 'right' | 'top-left' | 'top-right';
+// 移动端位置类型
+type MobilePosition = 'bottom' | 'top' | 'left-top' | 'left-bottom' | 'right-top' | 'right-bottom';
+
 interface SeatProps {
   player: Player;
-  position: 'bottom' | 'left' | 'top' | 'right' | 'top-left' | 'top-right';
+  position: DesktopPosition | MobilePosition;
   isDealer?: boolean;
   isActive?: boolean;
   heroHoleCards?: string[];
   positionLabel?: string;
   onPlayerClick?: (player: Player) => void;
+  isMobile?: boolean;
 }
 
 const Seat: React.FC<SeatProps> = ({ 
@@ -20,12 +26,13 @@ const Seat: React.FC<SeatProps> = ({
   isActive, 
   heroHoleCards, 
   positionLabel, 
-  onPlayerClick 
+  onPlayerClick,
+  isMobile = false
 }) => {
   const isHero = player.name === '你';
   
-  // Position styles - 桌面端固定位置
-  const positionStyles: Record<string, string> = {
+  // 桌面端位置样式
+  const desktopPositionStyles: Record<string, string> = {
     'bottom': 'bottom-[-70px] left-1/2 -translate-x-1/2',
     'left': 'left-[-70px] top-1/2 -translate-y-1/2 flex-row-reverse',
     'right': 'right-[-70px] top-1/2 -translate-y-1/2',
@@ -34,6 +41,17 @@ const Seat: React.FC<SeatProps> = ({
     'top-right': 'top-[5%] right-[12%] translate-x-1/2 -translate-y-1/2 flex-col-reverse',
   };
 
+  // 移动端位置样式 - 纵向椭圆布局（使用像素偏移更稳定）
+  const mobilePositionStyles: Record<string, string> = {
+    'bottom': 'hidden', // Hero 在移动端单独渲染，这里隐藏
+    'top': 'top-[-45px] left-1/2 -translate-x-1/2',
+    'left-top': 'top-[15%] left-[-35px]',
+    'left-bottom': 'bottom-[15%] left-[-35px]',
+    'right-top': 'top-[15%] right-[-35px]',
+    'right-bottom': 'bottom-[15%] right-[-35px]',
+  };
+
+  const positionStyles = isMobile ? mobilePositionStyles : desktopPositionStyles;
   const isFolded = player.state === 'folded';
   
   // Avatar
@@ -54,6 +72,128 @@ const Seat: React.FC<SeatProps> = ({
     }
   };
 
+  // 移动端 Hero 位置不在这里渲染
+  if (isMobile && isHero) {
+    return null;
+  }
+
+  // ==================== 移动端座位渲染 ====================
+  if (isMobile) {
+    return (
+      <motion.div 
+        className={`absolute ${positionStyles[position]} flex flex-col items-center z-10`}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3 }}
+      >
+        {/* Avatar & Info - Mobile */}
+        <div className={`relative ${isFolded ? 'opacity-40 grayscale' : ''} transition-all duration-300`}>
+          
+          {/* Active Glow Ring - Mobile */}
+          <AnimatePresence>
+            {isActive && (
+              <motion.div 
+                className="absolute -inset-1.5 rounded-full"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <div className="w-full h-full rounded-full bg-[var(--color-gold-500)]/40 blur-md animate-pulse" />
+                <div className="absolute inset-0 rounded-full border-2 border-[var(--color-gold-500)]" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Last Action Bubble - Mobile */}
+          <AnimatePresence>
+            {player.last_action && (
+              <motion.div 
+                className="absolute -top-6 left-1/2 -translate-x-1/2 z-20"
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
+              >
+                <div className="glass px-1.5 py-0.5 rounded border border-[var(--color-border)] whitespace-nowrap">
+                  <span className={`text-[9px] font-bold uppercase ${
+                    player.last_action.action.toLowerCase() === 'fold' 
+                      ? 'text-[var(--color-crimson-400)]'
+                      : player.last_action.action.toLowerCase() === 'raise'
+                      ? 'text-[var(--color-gold-400)]'
+                      : 'text-[var(--color-emerald-400)]'
+                  }`}>
+                    {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
+                      ? 'CHK' 
+                      : player.last_action.action.toUpperCase().slice(0, 3)}
+                  </span>
+                  {player.last_action.amount > 0 && (
+                    <span className="text-[9px] text-[var(--color-text-secondary)] ml-0.5 font-mono">
+                      ${player.last_action.amount}
+                    </span>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Avatar Circle - Mobile (increased size: 40px -> 48px) */}
+          <motion.div 
+            className={`
+              relative w-12 h-12 rounded-full overflow-hidden
+              bg-[var(--color-bg-elevated)] border-2
+              ${isActive ? 'border-[var(--color-gold-500)] shadow-[0_0_12px_rgba(212,175,55,0.4)]' : 'border-[var(--color-border)]'}
+              shadow-lg transition-all duration-300
+              ${onPlayerClick ? 'cursor-pointer active:scale-95' : ''}
+            `}
+            onClick={() => onPlayerClick && onPlayerClick(player)}
+            whileTap={onPlayerClick ? { scale: 0.95 } : undefined}
+            role={onPlayerClick ? "button" : undefined}
+            aria-label={onPlayerClick ? `查看 ${player.name} 的对手分析` : undefined}
+          >
+            <img 
+              src={avatarUrl} 
+              alt={`${player.name} 的头像`}
+              className="w-full h-full object-cover scale-110"
+              loading="lazy"
+              width={48}
+              height={48}
+            />
+            
+            {/* Dealer Button - Mobile */}
+            {player.is_dealer && (
+              <div className="absolute bottom-0 right-0 w-4 h-4 bg-[var(--color-text-primary)] text-[var(--color-bg-deep)] text-[8px] font-bold rounded-full flex items-center justify-center border border-[var(--color-bg-elevated)] shadow-sm z-10">
+                D
+              </div>
+            )}
+          </motion.div>
+
+          {/* Position Label Badge - Mobile */}
+          {(player.position_label || positionLabel) && (
+            <div className="absolute -top-0.5 -right-0.5 z-20">
+              <span className={`text-[7px] px-1 py-0.5 rounded font-bold shadow-md border ${
+                getPositionBadgeStyle(player.position_label || positionLabel || '')
+              }`}>
+                {player.position_label || positionLabel}
+              </span>
+            </div>
+          )}
+
+          {/* Player Name & Stack - Mobile Compact */}
+          <div 
+            className="absolute top-[52px] left-1/2 -translate-x-1/2 glass px-2 py-1 rounded-lg border border-[var(--color-border)] text-center min-w-[56px] shadow-lg"
+          >
+            <div className="text-[8px] text-[var(--color-text-muted)] font-medium truncate max-w-[48px]">
+              {player.name}
+            </div>
+            <div className="text-[11px] font-bold text-[var(--color-gold-400)] font-mono">
+              ${player.stack}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // ==================== 桌面端座位渲染 (保持不变) ====================
   return (
     <motion.div 
       className={`absolute ${positionStyles[position]} flex flex-col items-center gap-3 z-10`}
@@ -78,7 +218,7 @@ const Seat: React.FC<SeatProps> = ({
             >
               <Card 
                 card={card} 
-                size="lg"
+                size={isHero ? 'lg' : 'sm'}
               />
             </motion.div>
           ))

@@ -136,7 +136,7 @@ const Register: React.FC = () => {
           
           <h1 className="font-display text-3xl font-bold text-gold-gradient mb-2 tracking-tight">
             Poker Arena
-          </h1>
+            </h1>
           <p className="text-[var(--color-text-muted)] text-xs tracking-wide uppercase">
             Join the Elite
           </p>
@@ -316,13 +316,13 @@ const Register: React.FC = () => {
             <p className="text-[var(--color-text-muted)] text-sm mb-2">
               已有账户？
             </p>
-            <button
+              <button
               type="button"
-              onClick={() => navigate('/login')}
+                onClick={() => navigate('/login')}
               className="btn-ghost w-full py-2.5 text-sm font-medium"
-            >
-              立即登录
-            </button>
+              >
+                立即登录
+              </button>
           </div>
         </motion.div>
 

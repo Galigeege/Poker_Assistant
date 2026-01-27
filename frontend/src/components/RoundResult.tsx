@@ -32,8 +32,8 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
   
   const handleReviewClick = () => {
     setShowReviewModal(true);
-    if (!reviewAnalysis && !isReviewLoading) {
-      requestReview();
+      if (!reviewAnalysis && !isReviewLoading) {
+        requestReview();
     }
   };
   
@@ -124,7 +124,7 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
         {/* Street Analysis */}
         {analysis.streets.map((street: StreetReviewData, idx: number) => (
           <motion.div 
-            key={idx}
+            key={idx} 
             className="premium-card p-5"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -133,8 +133,8 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
             {/* Street Header */}
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-[var(--color-border)]">
               <span className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-                {streetNamesCN[street.street] || street.street}
-              </span>
+                  {streetNamesCN[street.street] || street.street}
+                </span>
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
                 street.is_correct 
                   ? 'bg-[var(--color-emerald-900)]/30 text-[var(--color-emerald-400)] border border-[var(--color-emerald-600)]/30' 
@@ -274,8 +274,8 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
               <Brain className="w-5 h-5 text-[var(--color-gold-500)]" aria-hidden="true" />
             </div>
             <h2 className="font-display text-xl font-bold text-[var(--color-text-primary)]">
-              AI 复盘分析
-            </h2>
+            AI 复盘分析
+          </h2>
           </div>
           <button
             onClick={() => setShowReviewModal(false)}
@@ -324,41 +324,41 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
         >
-          {/* Header */}
+        {/* Header */}
           <div className="flex-shrink-0 border-b border-[var(--color-border)] px-6 py-4 flex justify-between items-center bg-[var(--color-bg-deep)]">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-[var(--color-gold-600)]/20">
                 <Trophy className="w-5 h-5 text-[var(--color-gold-500)]" aria-hidden="true" />
               </div>
               <h2 className="font-display text-2xl font-bold text-gold-gradient">
-                本局结果
-              </h2>
+            本局结果
+          </h2>
             </div>
-            <button
-              onClick={onClose}
+          <button
+            onClick={onClose}
               className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
               aria-label="关闭结果"
-            >
+          >
               <X className="w-5 h-5 text-[var(--color-text-secondary)]" />
-            </button>
-          </div>
-          
+          </button>
+        </div>
+        
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* Pot Size */}
-            <div className="text-center">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Pot Size */}
+          <div className="text-center">
               <div className="text-[var(--color-text-muted)] text-sm mb-1">底池</div>
               <div className="text-[var(--color-gold-400)] font-bold text-4xl font-mono">
-                ${round_state.pot?.main?.amount || 0}
-              </div>
+              ${round_state.pot?.main?.amount || 0}
             </div>
-            
-            {/* Community Cards */}
-            {round_state.community_card && round_state.community_card.length > 0 && (
-              <div>
+          </div>
+          
+          {/* Community Cards */}
+          {round_state.community_card && round_state.community_card.length > 0 && (
+            <div>
                 <div className="text-[var(--color-text-muted)] text-sm mb-3 text-center">公共牌</div>
                 <div className="flex gap-3 justify-center">
-                  {round_state.community_card.map((card, i) => (
+                {round_state.community_card.map((card, i) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, y: -10 }}
@@ -367,150 +367,150 @@ const RoundResultModal: React.FC<RoundResultProps> = ({ result, initialStacks, o
                     >
                       <Card card={card} size="responsive" />
                     </motion.div>
-                  ))}
-                </div>
+                ))}
               </div>
-            )}
-            
+            </div>
+          )}
+          
             {/* Showdown Hands */}
-            {isShowdown && player_hole_cards && Object.keys(player_hole_cards).length > 0 && (
-              <div>
+          {isShowdown && player_hole_cards && Object.keys(player_hole_cards).length > 0 && (
+            <div>
                 <div className="text-[var(--color-text-muted)] text-sm mb-3">摊牌阶段</div>
-                <div className="space-y-3">
-                  {round_state.seats
+              <div className="space-y-3">
+                {round_state.seats
                     .filter((seat: Player) => seat.state !== 'folded')
-                    .map((seat: Player) => {
-                      const isWinner = winnerUuids.has(seat.uuid);
-                      const cards = getPlayerCards(seat.uuid);
-                      if (cards.length === 0) return null;
-                      
-                      return (
+                  .map((seat: Player) => {
+                    const isWinner = winnerUuids.has(seat.uuid);
+                    const cards = getPlayerCards(seat.uuid);
+                    if (cards.length === 0) return null;
+                    
+                    return (
                         <motion.div
-                          key={seat.uuid}
+                        key={seat.uuid}
                           className={`p-4 rounded-xl border ${
-                            isWinner
+                          isWinner
                               ? 'bg-[var(--color-gold-900)]/20 border-[var(--color-gold-600)]/40'
                               : 'bg-[var(--color-bg-elevated)] border-[var(--color-border)]'
-                          }`}
+                        }`}
                           initial={{ opacity: 0, x: -10 }}
                           animate={{ opacity: 1, x: 0 }}
-                        >
+                      >
                           <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2">
                               <span className={`font-bold ${isWinner ? 'text-[var(--color-gold-400)]' : 'text-[var(--color-text-primary)]'}`}>
-                                {seat.name}
-                              </span>
+                              {seat.name}
+                            </span>
                               {isWinner && <Crown className="w-4 h-4 text-[var(--color-gold-400)]" aria-hidden="true" />}
-                            </div>
+                          </div>
                             <span className={`text-sm px-3 py-1 rounded-lg ${
                               isWinner 
                                 ? 'bg-[var(--color-gold-900)]/30 text-[var(--color-gold-300)]' 
                                 : 'bg-[var(--color-bg-base)] text-[var(--color-text-secondary)]'
                             }`}>
                               {getHandRankDisplay(seat.uuid)}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            {cards.map((card, i) => (
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          {cards.map((card, i) => (
                               <Card key={i} card={card} size="md" />
-                            ))}
-                          </div>
+                          ))}
+                        </div>
                         </motion.div>
-                      );
-                    })}
-                </div>
+                    );
+                  })}
               </div>
-            )}
-            
+            </div>
+          )}
+          
             {/* No Showdown */}
-            {!isShowdown && (
+          {!isShowdown && (
               <div className="text-center py-6 text-[var(--color-text-muted)]">
                 所有对手弃牌，无需摊牌
-              </div>
-            )}
-            
-            {/* Winners */}
-            <div>
+            </div>
+          )}
+          
+          {/* Winners */}
+          <div>
               <div className="text-[var(--color-text-muted)] text-sm mb-3">赢家</div>
               <div className="space-y-3">
-                {winners.map((winner) => {
-                  const name = getPlayerName(winner.uuid);
-                  const prize = calculatePrize(winner.uuid, winner.stack);
-                  const isHero = name === '你';
-                  
-                  return (
+              {winners.map((winner) => {
+                const name = getPlayerName(winner.uuid);
+                const prize = calculatePrize(winner.uuid, winner.stack);
+                const isHero = name === '你';
+                
+                return (
                     <motion.div
-                      key={winner.uuid}
+                    key={winner.uuid}
                       className={`p-5 rounded-xl ${
                         isHero 
                           ? 'bg-[var(--color-emerald-900)]/20 border border-[var(--color-emerald-600)]/40' 
                           : 'bg-[var(--color-gold-900)]/20 border border-[var(--color-gold-600)]/40'
-                      }`}
+                    }`}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
-                    >
-                      <div className="flex items-center justify-between">
+                  >
+                    <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Trophy className={`w-6 h-6 ${isHero ? 'text-[var(--color-emerald-400)]' : 'text-[var(--color-gold-400)]'}`} aria-hidden="true" />
                           <span className={`font-bold text-xl ${isHero ? 'text-[var(--color-emerald-300)]' : 'text-[var(--color-gold-300)]'}`}>
                             {name}
-                          </span>
+                        </span>
                         </div>
                         <div className="text-right">
                           <div className={`font-bold text-2xl font-mono ${isHero ? 'text-[var(--color-emerald-400)]' : 'text-[var(--color-gold-400)]'}`}>
                             +${prize}
                           </div>
                           <div className="text-[var(--color-text-dim)] text-sm">
-                            总筹码: ${winner.stack}
+                          总筹码: ${winner.stack}
                           </div>
                         </div>
                       </div>
                     </motion.div>
-                  );
-                })}
-              </div>
+                );
+              })}
+            </div>
             </div>
           </div>
           
           {/* Footer Actions */}
           <div className="flex-shrink-0 border-t border-[var(--color-border)] px-6 py-4 bg-[var(--color-bg-deep)]">
             <div className="flex gap-4">
-              <button
-                onClick={handleReviewClick}
-                disabled={isReviewLoading}
+            <button
+              onClick={handleReviewClick}
+              disabled={isReviewLoading}
                 className="flex-1 btn-ghost py-3.5 flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isReviewLoading ? (
-                  <>
+            >
+              {isReviewLoading ? (
+                <>
                     <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
                     <span>AI 分析中…</span>
-                  </>
-                ) : (
-                  <>
+                </>
+              ) : (
+                <>
                     <Brain className="w-5 h-5" aria-hidden="true" />
-                    <span>AI 复盘分析</span>
-                  </>
-                )}
-              </button>
-              
-              <button
-                onClick={() => {
+                  <span>AI 复盘分析</span>
+                </>
+              )}
+            </button>
+            
+          <button
+            onClick={() => {
                   clearReview();
-                  onNextRound();
+              onNextRound();
                   setTimeout(() => onClose(), 100);
-                }}
+            }}
                 className="flex-1 btn-gold py-3.5 flex items-center justify-center gap-2"
-              >
+          >
                 <span className="font-bold">下一局</span>
                 <span className="text-sm opacity-75">(Enter)</span>
-              </button>
-            </div>
-          </div>
+          </button>
+        </div>
+      </div>
         </motion.div>
       </motion.div>
       
       <AnimatePresence>
-        {showReviewModal && <ReviewModal />}
+      {showReviewModal && <ReviewModal />}
       </AnimatePresence>
     </>
   );
