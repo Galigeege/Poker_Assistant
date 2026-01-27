@@ -80,12 +80,24 @@ function GameRoom() {
 
   // ==================== 移动端 UI ====================
   if (isMobile) {
-    const opponents = orderedPlayers.filter(p => p.name !== '你');
+    // 移动端位置映射 - 竖向牌桌
+    const getMobilePosition = (player: Player, playerIndex: number): 'bottom' | 'left' | 'right' | 'top' | 'top-left' | 'top-right' => {
+      if (player.name === '你') return 'bottom';
+      // 5个对手的位置：上左、上、上右、左、右
+      const positionMap: Record<number, 'left' | 'right' | 'top' | 'top-left' | 'top-right'> = {
+        1: 'top-left',
+        2: 'top',
+        3: 'top-right',
+        4: 'left',
+        5: 'right'
+      };
+      return positionMap[playerIndex] || 'top';
+    };
     
     return (
       <div className="fixed inset-0 bg-[var(--color-bg-deep)] flex flex-col overflow-hidden">
         {/* 顶部导航 */}
-        <div className="flex-none flex items-center justify-between px-3 py-2 bg-[var(--color-bg-base)] border-b border-[var(--color-border)]">
+        <div className="flex-none flex items-center justify-between px-3 py-2 bg-[var(--color-bg-base)]/80 backdrop-blur-sm border-b border-[var(--color-border)] z-20">
           <button 
             onClick={handleLeaveTable}
             className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors"
@@ -94,16 +106,7 @@ function GameRoom() {
             <ArrowLeft className="w-5 h-5 text-[var(--color-text-secondary)]" />
           </button>
           
-          <div className="text-center">
-            <div className="text-[var(--color-gold-400)] font-bold font-mono text-lg">
-              ${pot}
-            </div>
-            <div className="text-[8px] text-[var(--color-text-dim)] uppercase tracking-wider">
-              Total Pot
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button 
               onClick={() => setShowMobileAI(true)}
               className="p-2 rounded-lg hover:bg-[var(--color-bg-hover)] transition-colors border border-[var(--color-gold-600)]/30"
@@ -125,7 +128,7 @@ function GameRoom() {
         <AnimatePresence>
           {needsApiKey && (
             <motion.div 
-              className="flex-none px-3 py-2 bg-[var(--color-gold-900)]/20 border-b border-[var(--color-gold-600)]/30"
+              className="flex-none px-3 py-2 bg-[var(--color-gold-900)]/20 border-b border-[var(--color-gold-600)]/30 z-10"
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
@@ -148,114 +151,63 @@ function GameRoom() {
           )}
         </AnimatePresence>
 
-        {/* 游戏区域 - 竖向布局 */}
-        <div className="flex-1 flex flex-col min-h-0 p-3 gap-2">
-          
-          {/* 对手区域 - 上半部分 */}
-          <div className="flex-1 flex flex-col gap-2 min-h-0">
-            {/* 对手行（2-3人一行） */}
-            <div className="flex-1 flex items-center justify-center gap-3">
-              {opponents.slice(0, 3).map((player) => {
-                const isActive = actionRequest 
-                  ? (actionRequest.round_state?.seats?.find((s: Player) => s.uuid === player.uuid)?.state === 'participating') 
-                  : false;
-                return (
-                  <MobileOpponentSeat
-                    key={player.uuid}
-                    player={player}
-                    isActive={isActive}
-                    onPlayerClick={handlePlayerClick}
-                  />
-                );
-              })}
-            </div>
-            {opponents.length > 3 && (
-              <div className="flex-1 flex items-center justify-center gap-3">
-                {opponents.slice(3).map((player) => {
-                  const isActive = actionRequest 
-                    ? (actionRequest.round_state?.seats?.find((s: Player) => s.uuid === player.uuid)?.state === 'participating') 
-                    : false;
-                  return (
-                    <MobileOpponentSeat
-                      key={player.uuid}
-                      player={player}
-                      isActive={isActive}
-                      onPlayerClick={handlePlayerClick}
-                    />
-                  );
-                })}
+        {/* 牌桌区域 */}
+        <div className="flex-1 flex items-center justify-center p-2 overflow-hidden">
+          <div className="relative w-full max-w-[340px] aspect-[3/4]">
+            {/* 竖向牌桌 */}
+            <div className="absolute inset-x-4 top-[15%] bottom-[20%] poker-felt rounded-[60px] border-[8px] border-[var(--color-bg-base)] shadow-2xl">
+              {/* 牌桌边框高亮 */}
+              <div className="absolute inset-0 rounded-[52px] border border-[var(--color-gold-600)]/20 pointer-events-none" />
+              
+              {/* 底池显示 */}
+              <div className="absolute top-4 left-1/2 -translate-x-1/2">
+                <div className="glass px-3 py-1.5 rounded-xl border border-[var(--color-gold-500)]/30">
+                  <div className="text-[8px] text-[var(--color-text-muted)] uppercase tracking-wider text-center">Pot</div>
+                  <div className="text-[var(--color-gold-400)] font-bold text-lg font-mono text-center">${pot}</div>
+                </div>
               </div>
-            )}
-          </div>
 
-          {/* 公共牌区域 - 中间 */}
-          <div className="flex-none py-3">
-            <div className="flex items-center justify-center gap-1.5">
-              {communityCards.length > 0 ? (
-                communityCards.map((card, i) => (
-                  <motion.div
-                    key={`${card}-${i}`}
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                  >
-                    <Card card={card} size="md" />
-                  </motion.div>
-                ))
-              ) : (
-                <div className="flex gap-1.5">
-                  {[1,2,3,4,5].map(i => (
-                    <div key={i} className="w-10 h-14 rounded-lg border border-[var(--color-border)] border-dashed opacity-30" />
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 玩家区域 - 下半部分 */}
-          <div className="flex-none">
-            {/* 玩家手牌 */}
-            <div className="flex items-center justify-center gap-2 mb-3">
-              {heroHoleCards && heroHoleCards.length > 0 ? (
-                heroHoleCards.map((card, idx) => (
-                  <motion.div
-                    key={idx}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.1 }}
-                  >
-                    <Card card={card} size="lg" />
-                  </motion.div>
-                ))
-              ) : (
-                <>
-                  <Card hidden size="lg" />
-                  <Card hidden size="lg" />
-                </>
-              )}
-            </div>
-            
-            {/* 玩家信息 */}
-            <div className="flex items-center justify-center gap-3">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-[var(--color-gold-500)] bg-[var(--color-bg-elevated)]">
-                  <img 
-                    src={`https://api.dicebear.com/9.x/adventurer/svg?seed=你`}
-                    alt="玩家头像"
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-[var(--color-text-muted)]">你</div>
-                  <div className="text-lg font-bold text-[var(--color-gold-400)] font-mono">${heroStack}</div>
-                </div>
-                {hero?.position_label && (
-                  <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-[var(--color-text-primary)] text-[var(--color-bg-deep)]">
-                    {hero.position_label}
-                  </span>
+              {/* 公共牌 */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-1">
+                {communityCards.length > 0 ? (
+                  communityCards.map((card, i) => (
+                    <motion.div
+                      key={`${card}-${i}`}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                    >
+                      <Card card={card} size="sm" />
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="flex gap-1">
+                    {[1,2,3,4,5].map(i => (
+                      <div key={i} className="w-8 h-11 rounded border border-[var(--color-border)]/30 border-dashed" />
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
+
+            {/* 玩家座位 */}
+            {orderedPlayers.map((player, idx) => {
+              const position = getMobilePosition(player, idx);
+              const isActive = actionRequest 
+                ? (actionRequest.round_state?.seats?.find((s: Player) => s.uuid === player.uuid)?.state === 'participating') 
+                : false;
+              
+              return (
+                <MobileSeat
+                  key={player.uuid}
+                  player={player}
+                  position={position}
+                  isActive={isActive}
+                  heroHoleCards={player.name === '你' ? heroHoleCards : undefined}
+                  onPlayerClick={handlePlayerClick}
+                />
+              );
+            })}
           </div>
         </div>
 
@@ -545,82 +497,130 @@ function GameRoom() {
   );
 }
 
-// 移动端对手座位组件
-function MobileOpponentSeat({ 
+// 移动端座位组件 - 围绕牌桌
+function MobileSeat({ 
   player, 
+  position,
   isActive, 
+  heroHoleCards,
   onPlayerClick 
 }: { 
   player: Player; 
+  position: 'bottom' | 'left' | 'right' | 'top' | 'top-left' | 'top-right';
   isActive: boolean;
+  heroHoleCards?: string[];
   onPlayerClick: (player: Player) => void;
 }) {
+  const isHero = player.name === '你';
   const isFolded = player.state === 'folded';
-  const avatarUrl = `https://api.dicebear.com/9.x/bottts/svg?seed=${player.name}`;
+  const avatarStyle = isHero ? 'adventurer' : 'bottts';
+  const avatarUrl = `https://api.dicebear.com/9.x/${avatarStyle}/svg?seed=${player.name}`;
+  
+  // 移动端位置样式 - 竖向牌桌
+  const positionStyles: Record<string, string> = {
+    'bottom': 'bottom-0 left-1/2 -translate-x-1/2',
+    'top': 'top-[2%] left-1/2 -translate-x-1/2',
+    'top-left': 'top-[8%] left-[10%]',
+    'top-right': 'top-[8%] right-[10%]',
+    'left': 'top-[42%] left-0',
+    'right': 'top-[42%] right-0',
+  };
+
+  // 位置标签颜色
+  const getPositionBadgeStyle = (label: string) => {
+    switch (label) {
+      case 'BTN': return 'bg-white text-[var(--color-bg-deep)]';
+      case 'SB': return 'bg-blue-600 text-white';
+      case 'BB': return 'bg-orange-600 text-white';
+      default: return 'bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]';
+    }
+  };
   
   return (
     <div 
-      className={`flex flex-col items-center gap-1 ${isFolded ? 'opacity-40 grayscale' : ''}`}
-      onClick={() => onPlayerClick(player)}
+      className={`absolute ${positionStyles[position]} flex flex-col items-center z-10 ${isFolded ? 'opacity-40 grayscale' : ''}`}
+      onClick={() => !isHero && onPlayerClick(player)}
     >
-      {/* 隐藏的手牌 */}
-      {!isFolded && (
-        <div className="flex -space-x-3 mb-1">
-          <div className="w-6 h-9 rounded bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border border-[#2a5a9e]/40 shadow" />
-          <div className="w-6 h-9 rounded bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border border-[#2a5a9e]/40 shadow" />
+      {/* 对手隐藏的手牌 */}
+      {!isHero && !isFolded && (
+        <div className="flex -space-x-2 mb-1">
+          <div className="w-5 h-7 rounded bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border border-[#2a5a9e]/40 shadow-sm" />
+          <div className="w-5 h-7 rounded bg-gradient-to-br from-[#1a3f6e] to-[#0d2240] border border-[#2a5a9e]/40 shadow-sm" />
+        </div>
+      )}
+
+      {/* Hero 手牌 - 显示在头像上方 */}
+      {isHero && (
+        <div className="flex gap-1 mb-1">
+          {heroHoleCards && heroHoleCards.length > 0 ? (
+            heroHoleCards.map((card, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.1 }}
+              >
+                <Card card={card} size="md" />
+              </motion.div>
+            ))
+          ) : (
+            <>
+              <Card hidden size="md" />
+              <Card hidden size="md" />
+            </>
+          )}
         </div>
       )}
       
-      {/* 头像 */}
-      <div className={`relative w-10 h-10 rounded-full overflow-hidden border-2 ${
-        isActive ? 'border-[var(--color-gold-500)] shadow-lg shadow-[var(--color-gold-500)]/30' : 'border-[var(--color-border)]'
-      } bg-[var(--color-bg-elevated)]`}>
-        <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
-        {player.is_dealer && (
-          <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white text-[var(--color-bg-deep)] text-[8px] font-bold rounded-full flex items-center justify-center border border-[var(--color-bg-elevated)]">
-            D
-          </div>
+      {/* 头像 + 信息 */}
+      <div className="flex flex-col items-center">
+        {/* 最后行动气泡 */}
+        <AnimatePresence>
+          {player.last_action && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className={`mb-1 text-[8px] font-bold uppercase px-1.5 py-0.5 rounded ${
+                player.last_action.action.toLowerCase() === 'fold' ? 'bg-[var(--color-crimson-900)]/50 text-[var(--color-crimson-400)]' :
+                player.last_action.action.toLowerCase() === 'raise' ? 'bg-[var(--color-gold-900)]/50 text-[var(--color-gold-400)]' :
+                'bg-[var(--color-emerald-900)]/50 text-[var(--color-emerald-400)]'
+              }`}
+            >
+              {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
+                ? 'CHECK' 
+                : player.last_action.action.toUpperCase()}
+              {player.last_action.amount > 0 && ` $${player.last_action.amount}`}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 头像 */}
+        <div className={`relative ${isHero ? 'w-10 h-10' : 'w-9 h-9'} rounded-full overflow-hidden border-2 ${
+          isActive ? 'border-[var(--color-gold-500)] shadow-lg shadow-[var(--color-gold-500)]/30' : 
+          isHero ? 'border-[var(--color-gold-500)]' : 'border-[var(--color-border)]'
+        } bg-[var(--color-bg-elevated)]`}>
+          <img src={avatarUrl} alt={player.name} className="w-full h-full object-cover" />
+          {player.is_dealer && (
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-white text-[var(--color-bg-deep)] text-[7px] font-bold rounded-full flex items-center justify-center border border-[var(--color-bg-elevated)]">
+              D
+            </div>
+          )}
+        </div>
+        
+        {/* 位置标签 */}
+        {player.position_label && (
+          <span className={`mt-0.5 text-[7px] px-1 py-0.5 rounded font-bold ${getPositionBadgeStyle(player.position_label)}`}>
+            {player.position_label}
+          </span>
         )}
+        
+        {/* 名称和筹码 */}
+        <div className="text-center mt-0.5">
+          <div className="text-[8px] text-[var(--color-text-muted)] truncate max-w-[50px]">{player.name}</div>
+          <div className={`${isHero ? 'text-sm' : 'text-xs'} font-bold text-[var(--color-gold-400)] font-mono`}>${player.stack}</div>
+        </div>
       </div>
-      
-      {/* 位置标签 */}
-      {player.position_label && (
-        <span className={`text-[8px] px-1 py-0.5 rounded font-bold ${
-          player.position_label === 'BTN' ? 'bg-white text-[var(--color-bg-deep)]' :
-          player.position_label === 'SB' ? 'bg-blue-600 text-white' :
-          player.position_label === 'BB' ? 'bg-orange-600 text-white' :
-          'bg-[var(--color-bg-elevated)] text-[var(--color-text-secondary)]'
-        }`}>
-          {player.position_label}
-        </span>
-      )}
-      
-      {/* 名称和筹码 */}
-      <div className="text-center">
-        <div className="text-[9px] text-[var(--color-text-muted)] truncate max-w-[60px]">{player.name}</div>
-        <div className="text-xs font-bold text-[var(--color-gold-400)] font-mono">${player.stack}</div>
-      </div>
-      
-      {/* 最后行动 */}
-      <AnimatePresence>
-        {player.last_action && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${
-              player.last_action.action.toLowerCase() === 'fold' ? 'bg-[var(--color-crimson-900)]/50 text-[var(--color-crimson-400)]' :
-              player.last_action.action.toLowerCase() === 'raise' ? 'bg-[var(--color-gold-900)]/50 text-[var(--color-gold-400)]' :
-              'bg-[var(--color-emerald-900)]/50 text-[var(--color-emerald-400)]'
-            }`}
-          >
-            {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
-              ? 'CHECK' 
-              : player.last_action.action.toUpperCase()}
-            {player.last_action.amount > 0 && ` $${player.last_action.amount}`}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
