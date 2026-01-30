@@ -204,7 +204,7 @@ function HomePage() {
               ) : (
                 <Play className="w-12 h-12" />
               )}
-              title={isConnecting ? "连接中…" : "快速开始"}
+              title={isConnecting ? "连接中…" : "开始训练"}
               description="使用默认设置立即开始游戏"
               onClick={async () => {
                 const status = apiKeyStatus || await refreshApiKeyStatus();

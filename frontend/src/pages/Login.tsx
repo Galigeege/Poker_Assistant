@@ -103,7 +103,7 @@ const Login: React.FC = () => {
             Poker Arena
           </h1>
           <p className="text-[var(--color-text-muted)] text-sm tracking-wide uppercase">
-            Premium AI Poker Experience
+            Poker AI 带你涨牌力，打爆朋友局
           </p>
         </motion.div>
 
@@ -182,7 +182,7 @@ const Login: React.FC = () => {
                   <span>登录中…</span>
                 </>
               ) : (
-                <span>进入赌场</span>
+                <span>开始学习</span>
               )}
             </button>
           </form>
