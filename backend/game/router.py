@@ -112,24 +112,45 @@ async def get_sessions(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取当前用户的所有游戏会话"""
+    """获取当前用户的所有游戏会话（实时计算统计）"""
     sessions = crud.get_user_game_sessions(db, current_user.id, limit=limit, offset=skip)
     
-    return {
-        "sessions": [
-            {
-                "id": session.id,
-                "started_at": session.started_at.isoformat() if session.started_at else None,
-                "ended_at": session.ended_at.isoformat() if session.ended_at else None,
-                "total_hands": session.total_hands,
-                "total_profit": float(session.total_profit or 0),
-                "win_rate": float(session.win_rate or 0),
-                "vpip": float(session.vpip or 0),
-                "config": session.config
-            }
-            for session in sessions
-        ]
-    }
+    result = []
+    for session in sessions:
+        # 实时计算每个会话的统计数据
+        rounds = crud.get_session_rounds(db, session.id, current_user.id)
+        total_hands = len(rounds)
+        total_profit = sum(float(r.hero_profit or 0) for r in rounds)
+        wins = sum(1 for r in rounds if r.hero_profit and float(r.hero_profit) > 0)
+        win_rate = (wins / total_hands * 100) if total_hands > 0 else 0.0
+        
+        # 计算 VPIP
+        vpip_hands = 0
+        for round_record in rounds:
+            if round_record.street_history:
+                for street in round_record.street_history:
+                    if street.get('street') == 'preflop':
+                        actions = street.get('actions', [])
+                        hero_actions = [a for a in actions if a.get('player') == '你']
+                        if hero_actions:
+                            for action in hero_actions:
+                                if action.get('action') in ['call', 'raise']:
+                                    vpip_hands += 1
+                                    break
+        vpip = (vpip_hands / total_hands * 100) if total_hands > 0 else 0.0
+        
+        result.append({
+            "id": session.id,
+            "started_at": session.started_at.isoformat() if session.started_at else None,
+            "ended_at": session.ended_at.isoformat() if session.ended_at else None,
+            "total_hands": total_hands,
+            "total_profit": total_profit,
+            "win_rate": win_rate,
+            "vpip": vpip,
+            "config": session.config
+        })
+    
+    return {"sessions": result}
 
 
 @router.get("/sessions/{session_id}")
@@ -211,15 +232,19 @@ async def get_statistics(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """获取用户统计数据"""
-    stats = crud.get_or_create_user_statistics(db, current_user.id)
+    """获取用户统计数据（实时计算）"""
+    # 实时计算统计数据，而不是只返回缓存值
+    stats = crud.calculate_user_statistics(db, current_user.id)
+    
+    # 同时更新缓存
+    crud.update_user_statistics(db, current_user.id, **stats)
     
     return {
-        "total_sessions": stats.total_sessions,
-        "total_hands": stats.total_hands,
-        "total_profit": float(stats.total_profit or 0),
-        "win_rate": float(stats.win_rate or 0),
-        "vpip": float(stats.vpip or 0)
+        "total_sessions": stats['total_sessions'],
+        "total_hands": stats['total_hands'],
+        "total_profit": float(stats['total_profit'] or 0),
+        "win_rate": float(stats['win_rate'] or 0),
+        "vpip": float(stats['vpip'] or 0)
     }
 
 
