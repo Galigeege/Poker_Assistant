@@ -13,6 +13,7 @@ export interface Player {
     amount: number;
   };
   hole_cards?: Card[]; // Only visible for Hero or at showdown
+  street_bet?: number; // Total amount bet by this player in current street
 }
 
 export interface Pot {

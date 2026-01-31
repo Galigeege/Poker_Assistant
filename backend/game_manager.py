@@ -10,6 +10,8 @@ from typing import Dict, Any, Optional
 from poker_assistant.engine.game_controller import GameController
 from poker_assistant.engine.async_human_player import AsyncHumanPlayer
 from poker_assistant.ai_analysis.review_analyzer import ReviewAnalyzer
+# 应用 PyPokerEngine 手牌评估修复补丁
+from poker_assistant.engine import patched_game_evaluator  # noqa: F401
 from poker_assistant.utils.config import Config
 from pypokerengine.api.game import setup_config, start_poker
 from backend.connection_manager import manager

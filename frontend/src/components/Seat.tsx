@@ -77,6 +77,16 @@ const Seat: React.FC<SeatProps> = ({
     return null;
   }
 
+  // Chip position styles for mobile - towards table center
+  const mobileChipPositions: Record<string, string> = {
+    'bottom': 'top-[-30px] left-1/2 -translate-x-1/2',
+    'top': 'bottom-[-30px] left-1/2 -translate-x-1/2',
+    'left-top': 'right-[-20px] top-1/2 -translate-y-1/2',
+    'left-bottom': 'right-[-20px] top-1/2 -translate-y-1/2',
+    'right-top': 'left-[-20px] top-1/2 -translate-y-1/2',
+    'right-bottom': 'left-[-20px] top-1/2 -translate-y-1/2',
+  };
+
   // ==================== 移动端座位渲染 ====================
   if (isMobile) {
     return (
@@ -104,32 +114,23 @@ const Seat: React.FC<SeatProps> = ({
             )}
           </AnimatePresence>
 
-          {/* Last Action Bubble - Mobile */}
+          {/* Street Bet Chips Display - Mobile */}
           <AnimatePresence>
-            {player.last_action && (
+            {player.street_bet !== undefined && player.street_bet > 0 && !isFolded && (
               <motion.div 
-                className="absolute -top-6 left-1/2 -translate-x-1/2 z-20"
-                initial={{ opacity: 0, y: 3 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -3 }}
+                className={`absolute z-30 ${mobileChipPositions[position] || 'top-[-30px] left-1/2 -translate-x-1/2'}`}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
               >
-                <div className="glass px-1.5 py-0.5 rounded border border-[var(--color-border)] whitespace-nowrap">
-                  <span className={`text-[9px] font-bold uppercase ${
-                    player.last_action.action.toLowerCase() === 'fold' 
-                      ? 'text-[var(--color-crimson-400)]'
-                      : player.last_action.action.toLowerCase() === 'raise'
-                      ? 'text-[var(--color-gold-400)]'
-                      : 'text-[var(--color-emerald-400)]'
-                  }`}>
-                    {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
-                      ? 'CHK' 
-                      : player.last_action.action.toUpperCase().slice(0, 3)}
+                <div className="flex items-center gap-0.5 bg-[var(--color-bg-deep)]/90 rounded-full px-1.5 py-0.5 border border-[var(--color-gold-600)]/50 shadow-lg">
+                  {/* Simple chip icon */}
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)] flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full border border-[var(--color-gold-300)]/50" />
+                  </div>
+                  <span className="text-[9px] font-bold text-[var(--color-gold-400)] font-mono">
+                    ${player.street_bet}
                   </span>
-                  {player.last_action.amount > 0 && (
-                    <span className="text-[9px] text-[var(--color-text-secondary)] ml-0.5 font-mono">
-                      ${player.last_action.amount}
-                    </span>
-                  )}
                 </div>
               </motion.div>
             )}
@@ -193,7 +194,17 @@ const Seat: React.FC<SeatProps> = ({
     );
   }
 
-  // ==================== 桌面端座位渲染 (保持不变) ====================
+  // Chip position styles for desktop - towards table center
+  const desktopChipPositions: Record<string, string> = {
+    'bottom': 'top-[-60px] left-1/2 -translate-x-1/2',
+    'left': 'right-[80px] top-1/2 -translate-y-1/2',
+    'right': 'left-[-80px] top-1/2 -translate-y-1/2',
+    'top': 'bottom-[80px] left-1/2 -translate-x-1/2',
+    'top-left': 'bottom-[-30px] right-[-20px]',
+    'top-right': 'bottom-[-30px] left-[-20px]',
+  };
+
+  // ==================== 桌面端座位渲染 ====================
   return (
     <motion.div 
       className={`absolute ${positionStyles[position]} flex flex-col items-center gap-3 z-10`}
@@ -238,6 +249,32 @@ const Seat: React.FC<SeatProps> = ({
       {/* Avatar & Info */}
       <div className={`relative group ${isFolded ? 'opacity-40 grayscale' : ''} transition-all duration-300`}>
         
+        {/* Street Bet Chips Display - Desktop */}
+        <AnimatePresence>
+          {player.street_bet !== undefined && player.street_bet > 0 && !isFolded && (
+            <motion.div 
+              className={`absolute z-30 ${desktopChipPositions[position] || 'top-[-60px] left-1/2 -translate-x-1/2'}`}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+            >
+              <div className="flex items-center gap-1 bg-[var(--color-bg-deep)]/90 rounded-full px-2 py-1 border border-[var(--color-gold-600)]/50 shadow-xl">
+                {/* Chip stack icon */}
+                <div className="relative w-4 h-4">
+                  <div className="absolute bottom-0 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)]" />
+                  <div className="absolute bottom-0.5 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-500)] to-[var(--color-gold-700)] border border-[var(--color-gold-400)]" />
+                  <div className="absolute bottom-1 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-300)] to-[var(--color-gold-500)] border border-[var(--color-gold-200)] flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full border border-[var(--color-gold-200)]/50" />
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-[var(--color-gold-400)] font-mono">
+                  ${player.street_bet}
+                </span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Active Glow Ring */}
         <AnimatePresence>
           {isActive && (
@@ -249,37 +286,6 @@ const Seat: React.FC<SeatProps> = ({
             >
               <div className="w-full h-full rounded-full bg-[var(--color-gold-500)]/30 blur-md animate-pulse" />
               <div className="absolute inset-0 rounded-full border-2 border-[var(--color-gold-500)] animate-pulse" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Last Action Bubble */}
-        <AnimatePresence>
-          {player.last_action && (
-            <motion.div 
-              className="absolute -top-10 left-1/2 -translate-x-1/2 z-20"
-              initial={{ opacity: 0, y: 10, scale: 0.8 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.8 }}
-            >
-              <div className="glass px-3 py-1.5 rounded-lg border border-[var(--color-border)] whitespace-nowrap">
-                <span className={`text-xs font-bold uppercase tracking-wide ${
-                  player.last_action.action.toLowerCase() === 'fold' 
-                    ? 'text-[var(--color-crimson-400)]'
-                    : player.last_action.action.toLowerCase() === 'raise'
-                    ? 'text-[var(--color-gold-400)]'
-                    : 'text-[var(--color-emerald-400)]'
-                }`}>
-                  {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
-                    ? 'CHECK' 
-                    : player.last_action.action.toUpperCase()}
-                </span>
-                {player.last_action.amount > 0 && (
-                  <span className="text-xs text-[var(--color-text-secondary)] ml-1.5 font-mono">
-                    ${player.last_action.amount}
-                  </span>
-                )}
-              </div>
             </motion.div>
           )}
         </AnimatePresence>

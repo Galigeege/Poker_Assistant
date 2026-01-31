@@ -357,6 +357,27 @@ function GameRoom() {
 
         {/* Hero Section - Mobile */}
         <div className="relative z-10 bg-[var(--color-bg-base)] border-t border-[var(--color-border)]">
+          {/* Hero Street Bet Display - Above Hero Section */}
+          <AnimatePresence>
+            {hero?.street_bet !== undefined && hero.street_bet > 0 && hero.state !== 'folded' && (
+              <motion.div 
+                className="absolute -top-8 left-1/2 -translate-x-1/2 z-20"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+              >
+                <div className="flex items-center gap-1 bg-[var(--color-bg-deep)]/90 rounded-full px-2 py-1 border border-[var(--color-gold-600)]/50 shadow-lg">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)] flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full border border-[var(--color-gold-300)]/50" />
+                  </div>
+                  <span className="text-xs font-bold text-[var(--color-gold-400)] font-mono">
+                    ${hero.street_bet}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Hero Info + Cards */}
           <div className="px-4 py-3 flex items-center justify-center gap-4">
             {/* Hero Avatar & Info */}
@@ -405,26 +426,6 @@ function GameRoom() {
                 </>
               )}
             </div>
-
-            {/* Last Action */}
-            {hero?.last_action && (
-              <div className="glass px-2 py-1 rounded-lg">
-                <span className={`text-xs font-bold uppercase ${
-                  hero.last_action.action.toLowerCase() === 'fold' 
-                    ? 'text-[var(--color-crimson-400)]'
-                    : hero.last_action.action.toLowerCase() === 'raise'
-                    ? 'text-[var(--color-gold-400)]'
-                    : 'text-[var(--color-emerald-400)]'
-                }`}>
-                  {hero.last_action.action}
-                </span>
-                {hero.last_action.amount > 0 && (
-                  <span className="text-xs text-[var(--color-text-secondary)] ml-1 font-mono">
-                    ${hero.last_action.amount}
-                  </span>
-                )}
-              </div>
-            )}
           </div>
         </div>
 

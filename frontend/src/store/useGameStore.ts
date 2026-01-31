@@ -229,6 +229,38 @@ function saveRoundToSession(roundResult: RoundResult, streetHistory: StreetData[
   }
 }
 
+// Helper function to calculate each player's street bet from action_histories
+function calculateStreetBets(roundState: any, currentStreet: string): Map<string, number> {
+  const bets = new Map<string, number>();
+  
+  if (!roundState?.action_histories || !currentStreet) {
+    return bets;
+  }
+  
+  const streetActions = roundState.action_histories[currentStreet];
+  if (!streetActions || !Array.isArray(streetActions)) {
+    return bets;
+  }
+  
+  // Sum up all bets/raises for each player in current street
+  // Each action has format: { action: string, amount: number, uuid?: string, player_uuid?: string }
+  for (const action of streetActions) {
+    const uuid = action.uuid || action.player_uuid;
+    const actionType = action.action?.toLowerCase();
+    const amount = action.amount || 0;
+    
+    if (!uuid || amount <= 0) continue;
+    
+    // Only count call, raise, and bet actions (not fold)
+    if (actionType === 'call' || actionType === 'raise' || actionType === 'bet' || actionType === 'bigblind' || actionType === 'smallblind') {
+      const currentBet = bets.get(uuid) || 0;
+      bets.set(uuid, currentBet + amount);
+    }
+  }
+  
+  return bets;
+}
+
 // Helper function to calculate position labels
 function calculatePositionLabels(players: Player[], dealerBtn?: number): Map<string, string> {
   const labels = new Map<string, string>();
@@ -696,10 +728,14 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
       if (msg.data.round_state) {
         const dealerBtn = msg.data.round_state.dealer_btn;
         const positionLabels = calculatePositionLabels(msg.data.round_state.seats, dealerBtn);
+        
+        // New street - reset street bets to 0 (new betting round)
         const playersWithPositions = msg.data.round_state.seats.map((seat: any) => ({
           ...seat,
           position_label: positionLabels.get(seat.uuid),
-          is_dealer: dealerBtn !== undefined && seat.uuid === msg.data.round_state.seats[dealerBtn]?.uuid
+          is_dealer: dealerBtn !== undefined && seat.uuid === msg.data.round_state.seats[dealerBtn]?.uuid,
+          street_bet: 0, // Reset at start of new street
+          last_action: undefined // Clear last action at new street
         }));
         
         const newCommunityCards = msg.data.round_state.community_card || [];
@@ -787,13 +823,20 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
       // Also update state if provided, but preserve position labels
       if (msg.data.round_state) {
         const currentPlayers = get().players;
+        const currentStreetForBets = get().currentStreet;
+        
+        // Calculate street bets from action histories
+        const streetBets = calculateStreetBets(msg.data.round_state, currentStreetForBets);
+        
         const updatedPlayers = msg.data.round_state.seats.map((seat: any) => {
           // Preserve position_label and is_dealer from current state
           const existingPlayer = currentPlayers.find((p: Player) => p.uuid === seat.uuid);
           const basePlayer = {
             ...seat,
             position_label: existingPlayer?.position_label,
-            is_dealer: existingPlayer?.is_dealer
+            is_dealer: existingPlayer?.is_dealer,
+            // Update street bet from action histories
+            street_bet: streetBets.get(seat.uuid) || 0
           };
           
           // If this player just acted, add last_action
