@@ -22,6 +22,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_admin = Column(Boolean, default=False, nullable=False)  # 管理员标识
 
     # 用户级别的 AI Key（上线前先明文存储；生产建议改为加密存储）
     deepseek_api_key = Column(String(255), nullable=True)

@@ -72,7 +72,8 @@ class GameLogger:
         if self.current_hand_data and street in self.current_hand_data["streets"]:
             self.current_hand_data["streets"][street]["community_cards"] = community_cards
 
-    def record_action(self, street: str, player_name: str, action_type: str, amount: int, pot_size: int):
+    def record_action(self, street: str, player_name: str, action_type: str, amount: int, pot_size: int,
+                      bot_persona: str = None, bot_style: str = None):
         """
         记录玩家行动
         
@@ -82,6 +83,8 @@ class GameLogger:
             action_type: 行动类型 (call, raise, fold, check)
             amount: 金额
             pot_size: 行动后的底池大小（近似值）
+            bot_persona: AI Bot 的 Persona 名称（可选）
+            bot_style: AI Bot 的风格代码（可选，如 rock/tag/lag）
         """
         if self.current_hand_data and street in self.current_hand_data["streets"]:
             action_record = {
@@ -91,6 +94,13 @@ class GameLogger:
                 "pot_after": pot_size,
                 "timestamp": time.time()
             }
+            
+            # 如果是 AI Bot，添加 Persona 信息
+            if bot_persona:
+                action_record["bot_persona"] = bot_persona
+            if bot_style:
+                action_record["bot_style"] = bot_style
+                
             self.current_hand_data["streets"][street]["actions"].append(action_record)
             
     def record_ai_advice(self, street: str, advice: Dict[str, Any]):

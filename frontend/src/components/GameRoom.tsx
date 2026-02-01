@@ -10,6 +10,7 @@ import Controls from './Controls';
 import AICopilot from './AICopilot';
 import RoundResultModal from './RoundResult';
 import OpponentProfileModal from './OpponentProfileModal';
+import DebugPanel from './DebugPanel';
 import type { Player } from '../types';
 
 // 移动端位置类型
@@ -32,7 +33,8 @@ function GameRoom() {
     needsApiKeyMessage,
     aiCopilotEnabled,
     isConnecting,
-    currentStreet
+    currentStreet,
+    currentRoundInitialStacks
   } = useGameStore();
 
   // 回合阶段中文名称
@@ -454,6 +456,7 @@ function GameRoom() {
           {roundResult && (
             <RoundResultModal
               result={roundResult}
+              initialStacks={currentRoundInitialStacks}
               onClose={() => {}}
               onNextRound={() => startNextRound()}
             />
@@ -469,6 +472,9 @@ function GameRoom() {
             />
           )}
         </AnimatePresence>
+        
+        {/* Debug Panel - Admin only */}
+        <DebugPanel players={players} />
       </div>
     );
   }
@@ -562,7 +568,7 @@ function GameRoom() {
               
               {/* Center Pot Display */}
               <motion.div 
-                className="absolute top-[22%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
+                className="absolute top-[22%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 mt-[14px]"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
@@ -656,7 +662,8 @@ function GameRoom() {
       {roundResult && (
         <RoundResultModal
           result={roundResult}
-            onClose={() => {}}
+          initialStacks={currentRoundInitialStacks}
+          onClose={() => {}}
           onNextRound={() => {
             startNextRound();
           }}
@@ -674,6 +681,9 @@ function GameRoom() {
         />
       )}
       </AnimatePresence>
+      
+      {/* Debug Panel - Admin only */}
+      <DebugPanel players={players} />
     </div>
   );
 }

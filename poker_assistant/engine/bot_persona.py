@@ -1,49 +1,97 @@
 """
 Bot 性格定义模块
+基于《哈林顿在现金桌》理论的两种核心打法风格：TAG（紧凶）和 LAG（松凶）
 """
 from dataclasses import dataclass
+from typing import Optional
 
 @dataclass
 class BotPersona:
     name: str
     description: str
     playing_style: str
+    style_code: str  # "tag", "lag" - 用于 Prompt 中的风格指令
+    # 是否使用专用 Prompt 模板
+    use_custom_prompt: bool = True
+    custom_prompt_file: str = "bot_action_harrington.txt"
     
     def __repr__(self):
-        return f"Persona: {self.name}"
+        return f"Persona: {self.name} ({self.style_code.upper()})"
 
-# 预设性格列表
+
+# ==================== 两种核心打法风格 ====================
+# 基于哈林顿理论，TAG 为默认，LAG 用于针对紧弱对手
+
 PERSONAS = {
-    "aggressive": BotPersona(
-        name="激进派 (Aggressive)",
-        description="你是一个极具侵略性的玩家，喜欢通过加注来给对手施加压力。",
-        playing_style="Loose Aggressive (LAG). 你经常入池，并且喜欢在翻牌后持续下注 (C-Bet)。如果你有听牌或一点点牌力，你会毫不犹豫地半诈唬。面对软弱的对手，你会试图用大注码将其吓跑。"
+    # TAG（紧凶 - 哈林顿标准打法）
+    "tag": BotPersona(
+        name="紧凶 (TAG)",
+        description="你是哈林顿理论的标准执行者。起手牌严谨，翻牌后激进。你是职业牌手的典型风格。",
+        playing_style="""Tight Aggressive (TAG) 风格。你的核心策略：
+- 翻牌前：玩前 15-20% 的起手牌，严格遵循位置原则
+  * EP: 大对子(TT+)、AK/AQ
+  * MP: 加入 99/88/AJs/KQs
+  * LP: 加入同花连张(87s+)、小对子
+- 翻牌后：主动建立底池，不被动跟注
+  * 干燥面：高频 C-Bet (60-70%)
+  * 湿润面：有牌继续，无牌放弃
+- 混合策略：强牌偶尔慢打(20%)，保护过牌范围
+- 位置意识：在位置内更激进，OOP 更谨慎
+- 你是默认的最优打法""",
+        style_code="tag"
     ),
-    "conservative": BotPersona(
-        name="保守派 (Conservative)",
-        description="你是一个非常谨慎的玩家，只有在拿到强牌时才会激进。",
-        playing_style="Tight Passive (Rock). 你只玩很少的起手牌（如大对子、AK、AQ）。如果公共牌面危险，你会果断弃牌。你很少诈唬，如果你加注，通常意味着你拿着坚果牌。"
-    ),
-    "balanced": BotPersona(
-        name="平衡派 (Balanced)",
-        description="你是一个数学型的玩家，注重赔率和期望值。",
-        playing_style="Tight Aggressive (TAG). 你的打法非常稳健，注重位置优势。你会计算底池赔率，不会盲目跟注。你会混合你的打法，偶尔进行诈唬以保持不可预测性。"
-    ),
-    "gambler": BotPersona(
-        name="赌徒 (Gambler)",
-        description="你来这里就是为了寻求刺激的，你不在乎输赢，只在乎大场面。",
-        playing_style="Loose Passive / Maniac. 你喜欢看翻牌，几乎什么牌都玩。你喜欢 All-in 的快感。逻辑对你来说不重要，直觉才是王道。经常做出超额下注 (Overbet)。"
-    ),
-    "calling_station": BotPersona(
-        name="跟注站 (Calling Station)",
-        description="你很好奇对手有什么牌，所以你很难弃牌。",
-        playing_style="Loose Passive. 只要你有一点点牌力（比如底对），你就会一路跟注到底。你很少加注，但几乎不弃牌。对手很难诈唬到你，但你可以轻松价值下注。"
+    
+    # C型：LAG（松凶）
+    "lag": BotPersona(
+        name="松凶 (LAG)",
+        description="你是一个高频施压的玩家，擅长利用位置优势和弃牌率。你专门针对紧弱对手。",
+        playing_style="""Loose Aggressive (LAG) 风格。你的核心策略：
+- 翻牌前：放宽范围到 25-30%，尤其在后位
+  * 在 CO/BTN 几乎任何两张牌都可以开池
+  * 大量 3-Bet 轻牌（A5s, K9s 等阻挡牌）
+- 翻牌后：高频施压，利用弃牌率
+  * C-Bet 频率 70-80%，不管有没有牌
+  * 转牌继续开枪（Double Barrel）如果出惊悚牌
+  * 河牌敢于诈唬全下
+- 半诈唬：任何听牌都是加注的理由
+- 目标对手：专门针对紧弱玩家（太多弃牌的人）
+- 风险：遇到跟注站或激进玩家时需要收紧
+- 你需要强大的读牌能力和心理素质""",
+        style_code="lag"
     )
 }
 
-def get_random_persona():
+
+def get_default_persona() -> BotPersona:
+    """获取默认性格（TAG - 紧凶，哈林顿标准打法）"""
+    return PERSONAS["tag"]
+
+
+def get_random_persona() -> BotPersona:
+    """随机获取一种性格"""
     import random
     return random.choice(list(PERSONAS.values()))
+
+
+def get_persona_by_name(name: str) -> Optional[BotPersona]:
+    """根据名称获取性格"""
+    name_lower = name.lower()
+    # 支持多种名称匹配
+    if name_lower in PERSONAS:
+        return PERSONAS[name_lower]
+    # 别名支持
+    aliases = {
+        "a": "tag", "tight_aggressive": "tag", "standard": "tag", "harrington": "tag", "tight": "tag",
+        "b": "lag", "loose_aggressive": "lag", "aggressive": "lag", "loose": "lag"
+    }
+    if name_lower in aliases:
+        return PERSONAS[aliases[name_lower]]
+    return None
+
+
+def get_all_personas() -> dict:
+    """获取所有性格"""
+    return PERSONAS
 
 
 

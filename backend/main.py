@@ -105,9 +105,13 @@ async def websocket_endpoint(websocket: WebSocket):
         traceback.print_exc()
     
     try:
-        # 发送欢迎消息
+        # 发送欢迎消息（包含管理员状态）
         await manager.send_personal_message(
-            {"type": "system", "content": f"Connected to Poker AI Server v2.0 (User: {user.username})"},
+            {
+                "type": "system", 
+                "content": f"Connected to Poker AI Server v2.0 (User: {user.username})",
+                "is_admin": getattr(user, 'is_admin', False)
+            },
             websocket
         )
 
@@ -196,6 +200,29 @@ async def websocket_endpoint(websocket: WebSocket):
                 game_manager.start_game()
                 await manager.send_personal_message(
                     {"type": "system", "content": "新游戏已开始"},
+                    websocket
+                )
+            elif msg_type == "debug_mode":
+                # 处理 Debug 模式设置（仅管理员）
+                if not user.is_admin:
+                    await manager.send_personal_message(
+                        {"type": "error", "content": "仅管理员可以使用 Debug 功能"},
+                        websocket
+                    )
+                    continue
+                
+                debug_data = data.get("data", {})
+                enabled = debug_data.get("enabled", False)
+                filter_bots = debug_data.get("filter_bots", None)  # ["AI_1", "AI_3"] 或 None
+                game_manager.set_debug_mode(enabled, filter_bots)
+                await manager.send_personal_message(
+                    {
+                        "type": "debug_mode_updated",
+                        "data": {
+                            "enabled": enabled,
+                            "filter_bots": filter_bots
+                        }
+                    },
                     websocket
                 )
             

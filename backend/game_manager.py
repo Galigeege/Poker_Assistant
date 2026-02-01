@@ -5,7 +5,7 @@
 import threading
 import asyncio
 from queue import Queue, Empty
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 from poker_assistant.engine.game_controller import GameController
 from poker_assistant.engine.async_human_player import AsyncHumanPlayer
@@ -59,6 +59,10 @@ class GameManager:
             # 允许无 key 启动；复盘时再创建/报错
             self.review_analyzer = None
             print(f"[GameManager] ReviewAnalyzer not initialized at startup: {e}")
+        
+        # Debug 模式配置
+        self.debug_mode = False  # 是否启用 Debug Panel
+        self.debug_filter: Optional[List[str]] = None  # 过滤指定 AI 玩家 ID，None 表示显示全部
         
     def start_game(self):
         """启动游戏线程"""
@@ -166,6 +170,48 @@ class GameManager:
                 print(f"[GameManager] Warning: async_player 没有 set_ai_copilot_enabled 方法")
         else:
             print(f"[GameManager] Warning: async_player 不存在")
+    
+    def set_debug_mode(self, enabled: bool, filter_bots: Optional[List[str]] = None):
+        """
+        设置 Debug 模式
+        
+        Args:
+            enabled: 是否启用 Debug 模式
+            filter_bots: 仅显示指定 AI 玩家的日志（如 ["AI_1", "AI_3"]），None 表示显示全部
+        """
+        self.debug_mode = enabled
+        self.debug_filter = filter_bots
+        print(f"[GameManager] Debug mode {'启用' if enabled else '禁用'}, filter={filter_bots}")
+        
+        # 更新所有 AI 玩家的 debug callback
+        if hasattr(self, 'controller') and hasattr(self.controller, 'ai_players'):
+            for ai_player in self.controller.ai_players:
+                if enabled:
+                    ai_player.set_debug_callback(self._debug_callback)
+                else:
+                    ai_player.clear_debug_callback()
+    
+    def _debug_callback(self, debug_log: Dict[str, Any]):
+        """
+        Debug 回调：将 AI Bot 的 LLM 交互日志发送到前端
+        """
+        if not self.debug_mode:
+            return
+        
+        # 检查过滤条件
+        bot_name = debug_log.get("bot_name", "")
+        if self.debug_filter and bot_name not in self.debug_filter:
+            return
+        
+        # 构建 debug 消息
+        debug_message = {
+            "type": "debug_log",
+            "data": debug_log
+        }
+        
+        # 将消息放入队列以便通过 WebSocket 发送
+        self.request_queue.put(debug_message)
+        print(f"[GameManager] Debug log queued for {bot_name}")
     
     async def handle_review_request(self, review_data: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -469,7 +515,11 @@ class GameManager:
             ai_name = f"AI_{idx+1}"
             poker_config.register_player(name=ai_name, algorithm=ai_player)
             
-        print(f"[GameThread-{thread_id}] Starting start_poker...")
+            # 如果 Debug 模式已启用，设置 debug callback
+            if self.debug_mode:
+                ai_player.set_debug_callback(self._debug_callback)
+            
+        print(f"[GameThread-{thread_id}] Starting start_poker... Debug mode: {self.debug_mode}")
         
         try:
             # 启动游戏 (阻塞调用)

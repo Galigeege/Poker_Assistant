@@ -118,8 +118,31 @@ export interface ReviewAnalysis {
   error?: string;
 }
 
+// Debug 日志类型
+export interface DebugLog {
+  bot_id: string;
+  bot_name: string;
+  persona: string;
+  style: string;
+  street: string;
+  position: string;
+  hole_cards: string[];
+  community_cards: string[];
+  pot_size: number;
+  to_call: number;
+  rng_value: number;
+  prompt: string;
+  response: string;
+  analysis: {
+    equity?: string;
+    spr?: string;
+    board_texture?: string;
+  };
+  timestamp?: number;
+}
+
 export type WebSocketMessage = 
-  | { type: 'system'; content: string }
+  | { type: 'system'; content: string; is_admin?: boolean }
   | { type: 'needs_api_key'; content: string }
   | { type: 'game_start'; data: any }
   | { type: 'round_start'; data: { round_count: number; hole_card: string[]; seats: any[]; dealer_btn?: number } }
@@ -128,5 +151,7 @@ export type WebSocketMessage =
   | { type: 'action_request'; data: ActionRequest }
   | { type: 'round_result'; data: RoundResult }
   | { type: 'review_request'; data: any }
-  | { type: 'review_result'; data: ReviewAnalysis };
+  | { type: 'review_result'; data: ReviewAnalysis }
+  | { type: 'debug_log'; data: DebugLog }
+  | { type: 'debug_mode_updated'; data: { enabled: boolean; filter_bots: string[] | null } };
 

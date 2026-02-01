@@ -242,19 +242,23 @@ function calculateStreetBets(roundState: any, currentStreet: string): Map<string
     return bets;
   }
   
-  // Sum up all bets/raises for each player in current street
-  // Each action has format: { action: string, amount: number, uuid?: string, player_uuid?: string }
+  // PyPokerEngine action format:
+  // - amount: CUMULATIVE bet amount for this street (what we want to display)
+  // - add_amount/paid: INCREMENTAL amount added by this action
+  // So we should take the LAST amount value for each player, not sum them
   for (const action of streetActions) {
     const uuid = action.uuid || action.player_uuid;
     const actionType = action.action?.toLowerCase();
     const amount = action.amount || 0;
     
-    if (!uuid || amount <= 0) continue;
+    if (!uuid) continue;
     
-    // Only count call, raise, and bet actions (not fold)
-    if (actionType === 'call' || actionType === 'raise' || actionType === 'bet' || actionType === 'bigblind' || actionType === 'smallblind') {
-      const currentBet = bets.get(uuid) || 0;
-      bets.set(uuid, currentBet + amount);
+    // Record cumulative bet for each player (taking the last value)
+    // For fold, we still record the amount they had bet before folding
+    if (actionType === 'call' || actionType === 'raise' || actionType === 'bet' || 
+        actionType === 'bigblind' || actionType === 'smallblind' || actionType === 'fold') {
+      // amount is already cumulative in PyPokerEngine, so just overwrite
+      bets.set(uuid, amount);
     }
   }
   
@@ -332,6 +336,7 @@ interface GameStore {
   // Street History for Review
   streetHistory: StreetData[];
   currentStreet: string;
+  currentRoundNumber: number; // Current round number for logging/debugging
   
   // Review Analysis
   reviewAnalysis: ReviewAnalysis | null;
@@ -346,6 +351,12 @@ interface GameStore {
   // API Key Prompt
   needsApiKey: boolean;
   needsApiKeyMessage: string | null;
+  
+  // Debug Panel (Admin only)
+  isAdmin: boolean;
+  debugMode: boolean;
+  debugLogs: import('../types').DebugLog[];
+  debugFilterBots: string[] | null;
 
   // Actions
   connect: () => void;
@@ -356,6 +367,8 @@ interface GameStore {
   setAiCopilotEnabled: (enabled: boolean) => void;
   requestReview: () => void;
   clearReview: () => void;
+  setDebugMode: (enabled: boolean, filterBots?: string[] | null) => void;
+  clearDebugLogs: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -376,12 +389,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
   pendingEvents: [],
   streetHistory: [],
   currentStreet: '',
+  currentRoundNumber: 0,
   reviewAnalysis: null,
   isReviewLoading: false,
   currentRoundInitialStacks: {},
   logs: [],
   needsApiKey: false,
   needsApiKeyMessage: null,
+  isAdmin: false,
+  debugMode: false,
+  debugLogs: [],
+  debugFilterBots: null,
 
   connect: () => {
     const currentSocket = get().socket;
@@ -535,6 +553,35 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
   
+  setDebugMode: (enabled: boolean, filterBots?: string[] | null) => {
+    const socket = get().socket;
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      console.error('[Store] Cannot set debug mode: socket not connected');
+      return;
+    }
+    
+    // Send to backend
+    socket.send(JSON.stringify({
+      type: 'debug_mode',
+      data: {
+        enabled,
+        filter_bots: filterBots || null
+      }
+    }));
+    
+    // Update local state optimistically
+    set({ debugMode: enabled, debugFilterBots: filterBots || null });
+    
+    if (!enabled) {
+      // Clear logs when disabling
+      set({ debugLogs: [] });
+    }
+  },
+  
+  clearDebugLogs: () => {
+    set({ debugLogs: [] });
+  },
+  
   startNextRound: () => {
     const pendingData = get().pendingRoundStart;
     const pendingEvents = [...get().pendingEvents]; // Copy the array before clearing
@@ -587,12 +634,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         players: playersWithPositions,
         streetHistory: [],
         currentStreet: '',
+        currentRoundNumber: pendingData.round_count || 0,
         reviewAnalysis: null,
         isReviewLoading: false,
         currentRoundInitialStacks: initialStacksForRound
       });
       
-      get().addLog(`第 ${pendingData.round_count || '?'} 局开始，手牌: ${pendingData.hole_card?.join(' ') || 'N/A'}`);
+      get().addLog(`🎴 Hand #${pendingData.round_count || '?'} 开始，手牌: ${pendingData.hole_card?.join(' ') || 'N/A'}`);
     }
     
     // Process any pending events after a short delay to ensure state is updated
@@ -617,6 +665,11 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
   switch (msg.type) {
     case 'system':
       get().addLog(`[System] ${msg.content}`);
+      // 检查是否为管理员
+      if ((msg as any).is_admin !== undefined) {
+        set({ isAdmin: (msg as any).is_admin });
+        console.log('[Store] Admin status:', (msg as any).is_admin);
+      }
       break;
 
     case 'needs_api_key':
@@ -708,12 +761,13 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
         // Reset street history for new round
         streetHistory: [],
         currentStreet: '',
+        currentRoundNumber: msg.data.round_count || 0,
         reviewAnalysis: null,
         isReviewLoading: false,
         // Store initial stacks for this round
         currentRoundInitialStacks: initialStacksForRound
       });
-      get().addLog(`第 ${msg.data.round_count} 局开始，手牌: ${msg.data.hole_card?.join(' ') || 'N/A'}`);
+      get().addLog(`🎴 Hand #${msg.data.round_count} 开始，手牌: ${msg.data.hole_card?.join(' ') || 'N/A'}`);
       break;
     
     case 'street_start':
@@ -729,12 +783,17 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
         const dealerBtn = msg.data.round_state.dealer_btn;
         const positionLabels = calculatePositionLabels(msg.data.round_state.seats, dealerBtn);
         
-        // New street - reset street bets to 0 (new betting round)
+        // For preflop, blinds are already posted - calculate from action_histories
+        // For other streets, reset to 0
+        const streetBets = msg.data.street === 'preflop' 
+          ? calculateStreetBets(msg.data.round_state, 'preflop')
+          : new Map<string, number>();
+        
         const playersWithPositions = msg.data.round_state.seats.map((seat: any) => ({
           ...seat,
           position_label: positionLabels.get(seat.uuid),
           is_dealer: dealerBtn !== undefined && seat.uuid === msg.data.round_state.seats[dealerBtn]?.uuid,
-          street_bet: 0, // Reset at start of new street
+          street_bet: streetBets.get(seat.uuid) || 0, // Use calculated bets for preflop, 0 for other streets
           last_action: undefined // Clear last action at new street
         }));
         
@@ -765,7 +824,23 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
         'river': '河牌圈'
       };
       const streetName = streetNames[msg.data.street] || msg.data.street;
-      get().addLog(`进入 ${streetName}`);
+      const roundNum = get().currentRoundNumber;
+      get().addLog(`[#${roundNum}] 进入 ${streetName}`);
+      
+      // Log blinds for preflop
+      if (msg.data.street === 'preflop' && msg.data.round_state?.action_histories?.preflop) {
+        const preflopActions = msg.data.round_state.action_histories.preflop;
+        for (const action of preflopActions) {
+          const actionType = action.action?.toLowerCase();
+          if (actionType === 'smallblind' || actionType === 'bigblind') {
+            const blindPlayer = get().players.find((p: Player) => p.uuid === action.uuid);
+            const blindName = blindPlayer?.name || 'Unknown';
+            const blindPos = blindPlayer?.position_label || '';
+            const blindType = actionType === 'smallblind' ? 'SB' : 'BB';
+            get().addLog(`[#${roundNum}] [${blindPos}] ${blindName}: ${blindType} $${action.amount}`);
+          }
+        }
+      }
       break;
 
     case 'action_request':
@@ -789,16 +864,28 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
       }
       
       set({ actionRequest: msg.data });
-      // Also update state if provided, but preserve position labels
+      // Also update state if provided, but preserve position labels and street_bet
       if (msg.data.round_state) {
         const currentPlayers = get().players;
+        const currentStreetForBets = get().currentStreet;
+        
+        // Calculate street bets from action histories
+        const streetBets = calculateStreetBets(msg.data.round_state, currentStreetForBets);
+        
         const updatedPlayers = msg.data.round_state.seats.map((seat: any) => {
-          // Preserve position_label and is_dealer from current state
+          // Preserve position_label, is_dealer, and street_bet from current state
           const existingPlayer = currentPlayers.find((p: Player) => p.uuid === seat.uuid);
+          
+          // Calculate street bet - preserve for folded players
+          const calculatedBet = streetBets.get(seat.uuid) || 0;
+          const existingBet = existingPlayer?.street_bet || 0;
+          const streetBet = seat.state === 'folded' ? existingBet : (calculatedBet || existingBet);
+          
           return {
             ...seat,
             position_label: existingPlayer?.position_label,
-            is_dealer: existingPlayer?.is_dealer
+            is_dealer: existingPlayer?.is_dealer,
+            street_bet: streetBet
           };
         });
         set({
@@ -831,12 +918,19 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
         const updatedPlayers = msg.data.round_state.seats.map((seat: any) => {
           // Preserve position_label and is_dealer from current state
           const existingPlayer = currentPlayers.find((p: Player) => p.uuid === seat.uuid);
+          
+          // Calculate street bet - use calculated value, or preserve existing value for folded players
+          const calculatedBet = streetBets.get(seat.uuid) || 0;
+          const existingBet = existingPlayer?.street_bet || 0;
+          // If player is folded, preserve their existing bet (they already contributed to pot)
+          // Otherwise use the calculated bet from action histories
+          const streetBet = seat.state === 'folded' ? existingBet : (calculatedBet || existingBet);
+          
           const basePlayer = {
             ...seat,
             position_label: existingPlayer?.position_label,
             is_dealer: existingPlayer?.is_dealer,
-            // Update street bet from action histories
-            street_bet: streetBets.get(seat.uuid) || 0
+            street_bet: streetBet
           };
           
           // If this player just acted, add last_action
@@ -885,8 +979,9 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
         : action.action.toUpperCase();
       const amountText = action.amount > 0 ? ` $${action.amount}` : '';
       const positionText = positionLabel ? `[${positionLabel}] ` : '';
+      const currentRound = get().currentRoundNumber;
       
-      get().addLog(`${positionText}${playerName}: ${actionText}${amountText}`);
+      get().addLog(`[#${currentRound}] ${positionText}${playerName}: ${actionText}${amountText}`);
       break;
 
     case 'round_result':
@@ -953,6 +1048,29 @@ function handleMessage(msg: WebSocketMessage, set: any, get: any) {
           isReviewLoading: false
         });
       }
+      break;
+      
+    case 'debug_log':
+      // Handle debug log from AI bot LLM interaction
+      if (get().debugMode) {
+        const debugLog = (msg as any).data;
+        debugLog.timestamp = Date.now();
+        const currentLogs = get().debugLogs;
+        // Keep only last 50 logs to avoid memory issues
+        const newLogs = [...currentLogs, debugLog].slice(-50);
+        set({ debugLogs: newLogs });
+        console.log('[Store] Debug log received:', debugLog.bot_name, debugLog.style);
+      }
+      break;
+      
+    case 'debug_mode_updated':
+      // Confirmation from backend that debug mode was updated
+      const debugData = (msg as any).data;
+      set({ 
+        debugMode: debugData.enabled,
+        debugFilterBots: debugData.filter_bots 
+      });
+      console.log('[Store] Debug mode updated:', debugData);
       break;
   }
 }

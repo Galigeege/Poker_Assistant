@@ -28,6 +28,7 @@ class UserResponse(UserBase):
     id: str
     created_at: datetime
     is_active: bool
+    is_admin: bool = False  # 管理员标识
     has_deepseek_api_key: bool = False
     
     class Config:
