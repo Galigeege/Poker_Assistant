@@ -77,18 +77,17 @@ const Seat: React.FC<SeatProps> = ({
     return null;
   }
 
-  // Chip position styles for mobile - towards table center
-  const mobileChipPositions: Record<string, string> = {
-    'bottom': 'top-[-30px] left-1/2 -translate-x-1/2',
-    'top': 'bottom-[-30px] left-1/2 -translate-x-1/2',
-    'left-top': 'right-[-20px] top-1/2 -translate-y-1/2',
-    'left-bottom': 'right-[-20px] top-1/2 -translate-y-1/2',
-    'right-top': 'left-[-20px] top-1/2 -translate-y-1/2',
-    'right-bottom': 'left-[-20px] top-1/2 -translate-y-1/2',
+  // 判断筹码应该在左边还是右边（保持在桌内）
+  // 右侧位置的筹码放左边，左侧位置的筹码放右边
+  const isRightSidePosition = (pos: string) => {
+    return pos.includes('right') || pos === 'top-right';
   };
 
   // ==================== 移动端座位渲染 ====================
   if (isMobile) {
+    // 筹码位置：在信息卡旁边（左侧玩家筹码在右边，右侧玩家筹码在左边）
+    const chipOnLeft = isRightSidePosition(position);
+    
     return (
       <motion.div 
         className={`absolute ${positionStyles[position]} flex flex-col items-center z-10`}
@@ -114,29 +113,33 @@ const Seat: React.FC<SeatProps> = ({
             )}
           </AnimatePresence>
 
-          {/* Street Bet Chips Display - Mobile */}
+          {/* Last Action Bubble - Mobile (above avatar) */}
           <AnimatePresence>
-            {player.street_bet !== undefined && player.street_bet > 0 && !isFolded && (
+            {player.last_action && (
               <motion.div 
-                className={`absolute z-30 ${mobileChipPositions[position] || 'top-[-30px] left-1/2 -translate-x-1/2'}`}
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                className="absolute -top-6 left-1/2 -translate-x-1/2 z-20"
+                initial={{ opacity: 0, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -3 }}
               >
-                <div className="flex items-center gap-0.5 bg-[var(--color-bg-deep)]/90 rounded-full px-1.5 py-0.5 border border-[var(--color-gold-600)]/50 shadow-lg">
-                  {/* Simple chip icon */}
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)] flex items-center justify-center">
-                    <div className="w-1.5 h-1.5 rounded-full border border-[var(--color-gold-300)]/50" />
-                  </div>
-                  <span className="text-[9px] font-bold text-[var(--color-gold-400)] font-mono">
-                    ${player.street_bet}
+                <div className="glass px-1.5 py-0.5 rounded border border-[var(--color-border)] whitespace-nowrap">
+                  <span className={`text-[9px] font-bold uppercase ${
+                    player.last_action.action.toLowerCase() === 'fold' 
+                      ? 'text-[var(--color-crimson-400)]'
+                      : player.last_action.action.toLowerCase() === 'raise'
+                      ? 'text-[var(--color-gold-400)]'
+                      : 'text-[var(--color-emerald-400)]'
+                  }`}>
+                    {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
+                      ? 'CHK' 
+                      : player.last_action.action.toUpperCase().slice(0, 3)}
                   </span>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Avatar Circle - Mobile (increased size: 40px -> 48px) */}
+          {/* Avatar Circle - Mobile */}
           <motion.div 
             className={`
               relative w-12 h-12 rounded-full overflow-hidden
@@ -169,7 +172,7 @@ const Seat: React.FC<SeatProps> = ({
 
           {/* Position Label Badge - Mobile */}
           {(player.position_label || positionLabel) && (
-            <div className="absolute -top-0.5 -right-0.5 z-20">
+            <div className={`absolute -top-0.5 z-20 ${chipOnLeft ? '-left-0.5' : '-right-0.5'}`}>
               <span className={`text-[7px] px-1 py-0.5 rounded font-bold shadow-md border ${
                 getPositionBadgeStyle(player.position_label || positionLabel || '')
               }`}>
@@ -178,31 +181,44 @@ const Seat: React.FC<SeatProps> = ({
             </div>
           )}
 
-          {/* Player Name & Stack - Mobile Compact */}
-          <div 
-            className="absolute top-[52px] left-1/2 -translate-x-1/2 glass px-2 py-1 rounded-lg border border-[var(--color-border)] text-center min-w-[56px] shadow-lg"
-          >
-            <div className="text-[8px] text-[var(--color-text-muted)] font-medium truncate max-w-[48px]">
-              {player.name}
+          {/* Player Name & Stack + Street Bet - Mobile */}
+          <div className={`absolute top-[52px] left-1/2 -translate-x-1/2 flex items-center gap-1.5 ${chipOnLeft ? 'flex-row-reverse' : 'flex-row'}`}>
+            {/* Info Card */}
+            <div className="glass px-2 py-1 rounded-lg border border-[var(--color-border)] text-center min-w-[56px] shadow-lg">
+              <div className="text-[8px] text-[var(--color-text-muted)] font-medium truncate max-w-[48px]">
+                {player.name}
+              </div>
+              <div className="text-[11px] font-bold text-[var(--color-gold-400)] font-mono">
+                ${player.stack}
+              </div>
             </div>
-            <div className="text-[11px] font-bold text-[var(--color-gold-400)] font-mono">
-              ${player.stack}
-            </div>
+            
+            {/* Street Bet Chips - beside info card */}
+            {player.street_bet !== undefined && player.street_bet > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.2 }}
+              >
+                <div className="flex items-center gap-0.5 bg-[var(--color-bg-deep)]/90 rounded-full px-1.5 py-0.5 border border-[var(--color-gold-600)]/50 shadow-lg">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)] flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full border border-[var(--color-gold-300)]/50" />
+                  </div>
+                  <span className="text-[9px] font-bold text-[var(--color-gold-400)] font-mono">
+                    ${player.street_bet}
+                  </span>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
       </motion.div>
     );
   }
 
-  // Chip position styles for desktop - towards table center
-  const desktopChipPositions: Record<string, string> = {
-    'bottom': 'top-[-60px] left-1/2 -translate-x-1/2',
-    'left': 'right-[80px] top-1/2 -translate-y-1/2',
-    'right': 'left-[-80px] top-1/2 -translate-y-1/2',
-    'top': 'bottom-[80px] left-1/2 -translate-x-1/2',
-    'top-left': 'bottom-[-30px] right-[-20px]',
-    'top-right': 'bottom-[-30px] left-[-20px]',
-  };
+  // 桌面端：判断筹码应该在信息卡的左边还是右边
+  // 右侧玩家（right, top-right）筹码放左边，左侧玩家筹码放右边
+  const desktopChipOnLeft = position === 'right' || position === 'top-right';
 
   // ==================== 桌面端座位渲染 ====================
   return (
@@ -213,62 +229,59 @@ const Seat: React.FC<SeatProps> = ({
       transition={{ type: "spring", stiffness: 300, damping: 25 }}
     >
       
-      {/* Cards */}
-      <motion.div 
-        className={`flex gap-1.5 ${isHero ? '-mt-20 mb-5 scale-110' : 'opacity-90'}`}
-        animate={{ opacity: isFolded ? 0.3 : 1 }}
-      >
-        {isHero && heroHoleCards && heroHoleCards.length > 0 ? (
-          heroHoleCards.map((card, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: -20, rotateY: 180 }}
-              animate={{ opacity: 1, y: 0, rotateY: 0 }}
-              transition={{ delay: idx * 0.15, duration: 0.4 }}
-              className={idx === 1 ? '-ml-6 hover:-ml-2 transition-all duration-200' : ''}
-            >
-              <Card 
-                card={card} 
-                size={isHero ? 'lg' : 'sm'}
-              />
-            </motion.div>
-          ))
-        ) : !isHero && player.state !== 'folded' ? (
-          <>
-            <Card hidden size="sm" />
-            <Card hidden size="sm" className="-ml-4" />
-          </>
-        ) : isHero ? (
-          <>
-            <Card hidden size="lg" />
-            <Card hidden size="lg" className="-ml-6" />
-          </>
-        ) : null}
-      </motion.div>
+      {/* Hero Cards - Above Avatar (Desktop) - AI players don't show cards */}
+      {isHero && (
+        <motion.div 
+          className="flex gap-1.5 -mt-20 mb-5 scale-110"
+          animate={{ opacity: isFolded ? 0.3 : 1 }}
+        >
+          {heroHoleCards && heroHoleCards.length > 0 ? (
+            heroHoleCards.map((card, idx) => (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: -20, rotateY: 180 }}
+                animate={{ opacity: 1, y: 0, rotateY: 0 }}
+                transition={{ delay: idx * 0.15, duration: 0.4 }}
+                className={idx === 1 ? '-ml-6 hover:-ml-2 transition-all duration-200' : ''}
+              >
+                <Card 
+                  card={card} 
+                  size="lg"
+                />
+              </motion.div>
+            ))
+          ) : (
+            <>
+              <Card hidden size="lg" />
+              <Card hidden size="lg" className="-ml-6" />
+            </>
+          )}
+        </motion.div>
+      )}
 
       {/* Avatar & Info */}
       <div className={`relative group ${isFolded ? 'opacity-40 grayscale' : ''} transition-all duration-300`}>
         
-        {/* Street Bet Chips Display - Desktop */}
+        {/* Last Action Bubble - Above Avatar (Desktop) */}
         <AnimatePresence>
-          {player.street_bet !== undefined && player.street_bet > 0 && !isFolded && (
+          {player.last_action && (
             <motion.div 
-              className={`absolute z-30 ${desktopChipPositions[position] || 'top-[-60px] left-1/2 -translate-x-1/2'}`}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute -top-10 left-1/2 -translate-x-1/2 z-20"
+              initial={{ opacity: 0, y: 10, scale: 0.8 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.8 }}
             >
-              <div className="flex items-center gap-1 bg-[var(--color-bg-deep)]/90 rounded-full px-2 py-1 border border-[var(--color-gold-600)]/50 shadow-xl">
-                {/* Chip stack icon */}
-                <div className="relative w-4 h-4">
-                  <div className="absolute bottom-0 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)]" />
-                  <div className="absolute bottom-0.5 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-500)] to-[var(--color-gold-700)] border border-[var(--color-gold-400)]" />
-                  <div className="absolute bottom-1 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-300)] to-[var(--color-gold-500)] border border-[var(--color-gold-200)] flex items-center justify-center">
-                    <div className="w-2 h-2 rounded-full border border-[var(--color-gold-200)]/50" />
-                  </div>
-                </div>
-                <span className="text-xs font-bold text-[var(--color-gold-400)] font-mono">
-                  ${player.street_bet}
+              <div className="glass px-3 py-1.5 rounded-lg border border-[var(--color-border)] whitespace-nowrap">
+                <span className={`text-xs font-bold uppercase tracking-wide ${
+                  player.last_action.action.toLowerCase() === 'fold' 
+                    ? 'text-[var(--color-crimson-400)]'
+                    : player.last_action.action.toLowerCase() === 'raise'
+                    ? 'text-[var(--color-gold-400)]'
+                    : 'text-[var(--color-emerald-400)]'
+                }`}>
+                  {player.last_action.action.toLowerCase() === 'call' && player.last_action.amount === 0 
+                    ? 'CHECK' 
+                    : player.last_action.action.toUpperCase()}
                 </span>
               </div>
             </motion.div>
@@ -339,19 +352,44 @@ const Seat: React.FC<SeatProps> = ({
           </div>
         )}
 
-        {/* Player Name & Stack */}
+        {/* Player Name & Stack + Street Bet - Desktop */}
         <motion.div 
-          className="absolute top-[68px] left-1/2 -translate-x-1/2 glass px-4 py-2 rounded-xl border border-[var(--color-border)] text-center min-w-[100px] shadow-xl"
+          className={`absolute top-[68px] left-1/2 -translate-x-1/2 flex items-center gap-2 ${desktopChipOnLeft ? 'flex-row-reverse' : 'flex-row'}`}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
         >
-          <div className="text-xs text-[var(--color-text-muted)] font-medium truncate max-w-[80px] mb-0.5">
-            {player.name}
+          {/* Info Card */}
+          <div className="glass px-4 py-2 rounded-xl border border-[var(--color-border)] text-center min-w-[100px] shadow-xl">
+            <div className="text-xs text-[var(--color-text-muted)] font-medium truncate max-w-[80px] mb-0.5">
+              {player.name}
+            </div>
+            <div className="text-base font-bold text-[var(--color-gold-400)] font-mono">
+              ${player.stack}
+            </div>
           </div>
-          <div className="text-base font-bold text-[var(--color-gold-400)] font-mono">
-            ${player.stack}
-          </div>
+          
+          {/* Street Bet Chips - beside info card */}
+          {player.street_bet !== undefined && player.street_bet > 0 && !isFolded && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.2 }}
+            >
+              <div className="flex items-center gap-1 bg-[var(--color-bg-deep)]/90 rounded-full px-2 py-1 border border-[var(--color-gold-600)]/50 shadow-xl">
+                <div className="relative w-4 h-4">
+                  <div className="absolute bottom-0 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-400)] to-[var(--color-gold-600)] border border-[var(--color-gold-300)]" />
+                  <div className="absolute bottom-0.5 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-500)] to-[var(--color-gold-700)] border border-[var(--color-gold-400)]" />
+                  <div className="absolute bottom-1 left-0 w-4 h-4 rounded-full bg-gradient-to-br from-[var(--color-gold-300)] to-[var(--color-gold-500)] border border-[var(--color-gold-200)] flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full border border-[var(--color-gold-200)]/50" />
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-[var(--color-gold-400)] font-mono">
+                  ${player.street_bet}
+                </span>
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       </div>
     </motion.div>

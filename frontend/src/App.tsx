@@ -24,6 +24,7 @@ function HomePage() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<{ has_default_api_key: boolean; has_user_api_key: boolean } | null>(null);
   const [apiKeyStatusLoading, setApiKeyStatusLoading] = useState(false);
+  const [userStats, setUserStats] = useState<{ total_hands: number; win_rate: number }>({ total_hands: 0, win_rate: 0 });
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -49,9 +50,19 @@ function HomePage() {
     }
   };
 
+  const fetchUserStats = async () => {
+    try {
+      const stats = await apiClient.get<{ total_hands: number; win_rate: number; total_profit: number; vpip: number; total_sessions: number }>('/api/game/statistics');
+      setUserStats({ total_hands: stats.total_hands, win_rate: stats.win_rate });
+    } catch {
+      // Keep default values
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
       void refreshApiKeyStatus();
+      void fetchUserStats();
     }
   }, [isAuthenticated]);
 
@@ -243,11 +254,11 @@ function HomePage() {
           >
             <div className="flex items-center gap-3 chip">
               <Trophy className="w-4 h-4 text-[var(--color-gold-500)]" aria-hidden="true" />
-              <span className="text-[var(--color-text-secondary)]">总手数: <span className="font-mono text-[var(--color-text-primary)]">0</span></span>
+              <span className="text-[var(--color-text-secondary)]">总手数: <span className="font-mono text-[var(--color-text-primary)]">{userStats.total_hands}</span></span>
             </div>
             <div className="flex items-center gap-3 chip">
               <Crown className="w-4 h-4 text-[var(--color-gold-500)]" aria-hidden="true" />
-              <span className="text-[var(--color-text-secondary)]">胜率: <span className="font-mono text-[var(--color-text-primary)]">0%</span></span>
+              <span className="text-[var(--color-text-secondary)]">胜率: <span className="font-mono text-[var(--color-text-primary)]">{userStats.win_rate.toFixed(1)}%</span></span>
           </div>
           </motion.div>
 

@@ -10,7 +10,7 @@ interface CardProps {
   card?: string | CardData;
   hidden?: boolean;
   className?: string;
-  size?: 'sm' | 'md' | 'lg' | 'responsive' | 'responsive-sm' | 'responsive-lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'responsive' | 'responsive-sm' | 'responsive-lg';
 }
 
 const Card: React.FC<CardProps> = ({ card, hidden = false, className = '', size = 'md' }) => {
@@ -62,6 +62,13 @@ const Card: React.FC<CardProps> = ({ card, hidden = false, className = '', size 
   
   // Size classes with premium styling
   const sizeConfig: Record<string, { card: string; rank: string; suit: string; centerSuit: string; circle: string }> = {
+    xs: {
+      card: 'w-6 h-9',
+      rank: 'text-[7px]',
+      suit: 'text-[5px]',
+      centerSuit: 'text-xs',
+      circle: 'w-2 h-2',
+    },
     sm: {
       card: 'w-10 h-14',
       rank: 'text-xs',
