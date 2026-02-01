@@ -47,21 +47,7 @@ docker-compose up -d
 
 ---
 
-### 方案 3: Azure VM + Docker Compose
-**优势：**
-- ✅ 完全控制
-- ✅ 稳定不休眠
-- ✅ 可以运行完整 Docker Compose
-
-**劣势：**
-- ⚠️ 之前遇到 VM 大小可用性问题
-- ⚠️ 需要手动维护
-
-**成本：** B1s 免费 12 个月，之后约 $10-15/月
-
----
-
-### 方案 4: Railway / Render / Fly.io
+### 方案 3: Railway / Render / Fly.io
 **优势：**
 - ✅ 零配置部署
 - ✅ 自动 HTTPS
@@ -98,8 +84,7 @@ docker-compose up -d
 
 1. **Docker Compose + 云服务器**（推荐，最简单）
 2. **Azure Container Instances**
-3. **Azure VM + Docker Compose**（再试一次）
-4. **Railway / Render / Fly.io**（平台即服务）
+3. **Railway / Render / Fly.io**（平台即服务）
 
 告诉我你的选择，我会帮你完成部署！
 
