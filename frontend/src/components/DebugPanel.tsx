@@ -3,9 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../store/useGameStore';
 import { 
   Bug, 
-  X, 
   ChevronDown, 
-  ChevronUp, 
   Trash2, 
   Filter,
   Eye,
